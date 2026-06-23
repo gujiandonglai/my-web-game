@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第一人称射击游戏</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            z-index: 10;
+        }
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        #crosshair::before {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+        #crosshair::after {
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            transform: translateX(-50%);
+        }
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+        }
+        #instructions h2 {
+            margin-top: 0;
+        }
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        #startBtn:hover {
+            background: #45a049;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        <h2>第一人称射击游戏</h2>
+        <p><strong>操作说明：</strong></p>
+        <p>WASD - 移动</p>
+        <p>鼠标 - 转动视角</p>
+        <p>左键 - 射击</p>
+        <p>空格 - 跳跃</p>
+        <p><strong>目标：</strong>消灭所有敌人！</p>
+        <button id="startBtn">开始游戏</button>
+    </div>
+    <div id="hud">
+        <div>得分: <span id="score">0</span></div>
+        <div>弹药: <span id="ammo">30</span></div>
+        <div>敌人: <span id="enemies">0</span></div>
+    </div>
+    <div id="crosshair"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let player = {
+            position: new THREE.Vector3(0, 1.6, 5),
+            velocity: new THREE.Vector3(0, 0, 0),
+            direction: new THREE.Vector3(0, 0, 0),
+            rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            onGround: false
+        };
+        let enemies = [];
+        let bullets = [];
+        let keys = {};
+        let mouse = { x: 0, y: 0 };
+        let score = 0;
+        let ammo = 30;
+        let gameStarted = false;
+        let clock = new THREE.Clock();
+
+        // 游戏常量
+        const PLAYER_SPEED = 5;
+        const JUMP_FORCE = 7;
+        const GRAVITY = -20;
+        const ENEMY_SPEED = 2;
+        const BULLET_SPEED = 50;
+
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 0, 50);
+
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.copy(player.position);
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // 添加光照
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.left = -30;
+            directionalLight.shadow.camera.right = 30;
+            directionalLight.shadow.camera.top = 30;
+            directionalLight.shadow.camera.bottom = -30;
+            scene.add(directionalLight);
+
+            // 创建地面
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a7c4e,
+                roughness: 0.8
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 创建一些障碍物
+            createObstacles();
+
+            // 创建敌人
+            createEnemies(5);
+
+            // 事件监听
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function startGame() {
+            document.getElementById('instructions').classList.add('hidden');
+            gameStarted = true;
+            
+            document.addEventListener('keydown', (e) => keys[e.code] = true);
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('click', shoot);
+            
+            // 锁定鼠标指针
+            renderer.domElement.requestPointerLock();
+            
+            animate();
+        }
+
+        function createObstacles() {
+            const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+
+            const positions = [
+                [-8, 1, -5], [8, 1, -5], [-8, 1, 5], [8, 1, 5],
+                [0, 1, -10], [-5, 1, 0], [5, 1, 0]
+            ];
+
+            positions.forEach(pos => {
+                const box = new THREE.Mesh(boxGeometry, boxMaterial);
+                box.position.set(...pos);
+                box.castShadow = true;
+                box.receiveShadow = true;
+                scene.add(box);
+            });
+        }
+
+        function createEnemies(count) {
+            const enemyGeometry = new THREE.BoxGeometry(1, 2, 1);
+            const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+            for (let i = 0; i < count; i++) {
+                const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+                const angle = (i / count) * Math.PI * 2;
+                const radius = 15;
+                enemy.position.set(
+                    Math.cos(angle) * radius,
+                    1,
+                    Math.sin(angle) * radius
+                );
+                enemy.castShadow = true;
+                enemy.alive = true;
+                scene.add(enemy);
+                enemies.push(enemy);
+            }
+            updateEnemyCount();
+        }
+
+        function onMouseMove(event) {
+            if (!gameStarted) return;
+            
+            const sensitivity = 0.002;
+            player.rotation.y -= event.movementX * sensitivity;
+            player.rotation.x -= event.movementY * sensitivity;
+            player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
+        }
+
+        function shoot() {
+            if (!gameStarted || ammo <= 0) return;
+
+            ammo--;
+            updateAmmo();
+
+            // 创建子弹
+            const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            bullet.position.copy(camera.position);
+            
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(camera.quaternion);
+            bullet.velocity = direction.multiplyScalar(BULLET_SPEED);
+            
+            scene.add(bullet);
+            bullets.push(bullet);
+
+            // 子弹3秒后自动消失
+            setTimeout(() => {
+                scene.remove(bullet);
+                bullets = bullets.filter(b => b !== bullet);
+            }, 3000);
+        }
+
+        function updatePlayer(delta) {
+            // 重力
+            if (!player.onGround) {
+                player.velocity.y += GRAVITY * delta;
+            }
+
+            // 移动
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+
+            const moveDirection = new THREE.Vector3(0, 0, 0);
+            if (keys['KeyW']) moveDirection.add(forward);
+            if (keys['KeyS']) moveDirection.sub(forward);
+            if (keys['KeyA']) moveDirection.sub(right);
+            if (keys['KeyD']) moveDirection.add(right);
+
+            if (moveDirection.length() > 0) {
+                moveDirection.normalize();
+                player.velocity.x = moveDirection.x * PLAYER_SPEED;
+                player.velocity.z = moveDirection.z * PLAYER_SPEED;
+            } else {
+                player.velocity.x *= 0.9;
+                player.velocity.z *= 0.9;
+            }
+
+            // 跳跃
+            if (keys['Space'] && player.onGround) {
+                player.velocity.y = JUMP_FORCE;
+                player.onGround = false;
+            }
+
+            // 更新位置
+            player.position.x += player.velocity.x * delta;
+            player.position.y += player.velocity.y * delta;
+            player.position.z += player.velocity.z * delta;
+
+            // 地面碰撞
+            if (player.position.y <= 1.6) {
+                player.position.y = 1.6;
+                player.velocity.y = 0;
+                player.onGround = true;
+            }
+
+            // 边界限制
+            const boundary = 45;
+            player.position.x = Math.max(-boundary, Math.min(boundary, player.position.x));
+            player.position.z = Math.max(-boundary, Math.min(boundary, player.position.z));
+
+            // 更新相机
+            camera.position.copy(player.position);
+            camera.rotation.copy(player.rotation);
+        }
+
+        function updateEnemies(delta) {
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+
+                // 敌人朝向玩家移动
+                const direction = new THREE.Vector3()
+                    .subVectors(player.position, enemy.position)
+                    .normalize();
+                
+                enemy.position.x += direction.x * ENEMY_SPEED * delta;
+                enemy.position.z += direction.z * ENEMY_SPEED * delta;
+
+                // 检测与子弹的碰撞
+                bullets.forEach(bullet => {
+                    const distance = enemy.position.distanceTo(bullet.position);
+                    if (distance < 1) {
+                        enemy.alive = false;
+                        scene.remove(enemy);
+                        scene.remove(bullet);
+                        bullets = bullets.filter(b => b !== bullet);
+                        score += 10;
+                        updateScore();
+                        updateEnemyCount();
+                    }
+                });
+            });
+
+            enemies = enemies.filter(e => e.alive);
+        }
+
+        function updateBullets(delta) {
+            bullets.forEach(bullet => {
+                bullet.position.add(bullet.velocity.clone().multiplyScalar(delta));
+            });
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        function updateAmmo() {
+            document.getElementById('ammo').textContent = ammo;
+        }
+
+        function updateEnemyCount() {
+            document.getElementById('enemies').textContent = enemies.filter(e => e.alive).length;
+        }
+
+        function animate() {
+            if (!gameStarted) return;
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            updatePlayer(delta);
+            updateEnemies(delta);
+            updateBullets(delta);
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+    </script>
+</body>
+</html>
