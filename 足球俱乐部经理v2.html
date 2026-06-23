@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>足球经理</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+:root{
+  --green:#1a6b3c;--green2:#25a05a;--green3:#4dbe7a;
+  --gold:#c9a227;--gold2:#f5d05e;
+  --red:#c0392b;--red2:#e74c3c;--blue:#1565c0;--blue2:#1e88e5;
+  --dark:#0e1621;--dark2:#141d2b;--dark3:#0d2a50;
+  --text:#e8eef6;--text2:#8fa3be;--text3:#ffffff;
+  --card:#162234;--card2:#1c2d42;--border:#223552;
+  --radius:14px;--radius2:9px;
+}
+html,body{width:100%;height:100%;background:var(--dark);color:var(--text);font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;overflow:hidden}
+#app{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── NAV ── */
+#nav{display:flex;background:var(--dark2);border-top:1px solid var(--border);position:fixed;bottom:0;left:0;right:0;z-index:100;height:58px}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text2);font-size:10px;border:none;background:none;padding:4px 0;cursor:pointer;transition:color .2s}
+.nav-btn.active{color:var(--green3)}
+.nav-btn svg{width:22px;height:22px;stroke-width:1.7}
+
+/* ── SCREENS ── */
+#screens{flex:1;overflow:hidden;padding-bottom:58px}
+.screen{position:absolute;inset:0 0 58px 0;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.active{display:block}
+.screen-pad{padding:12px}
+
+/* ── TOP BAR ── */
+.top-bar{background:var(--dark2);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.club-name{font-size:16px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px}
+.resources{display:flex;gap:10px}
+.res{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--gold2);background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.2);border-radius:20px;padding:4px 10px}
+.res-stars{color:var(--green3);border-color:rgba(77,190,122,.2);background:rgba(77,190,122,.08)}
+.settings-btn{width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.card-title{font-size:13px;color:var(--text2);margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── BUTTONS ── */
+.btn{border:none;border-radius:var(--radius2);padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;justify-content:center;letter-spacing:.2px}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:active{transform:scale(.97);background:var(--green2)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:active{transform:scale(.97)}
+.btn-gold{background:var(--gold);color:#0e1621;font-weight:800}
+.btn-gold:active{transform:scale(.97)}
+.btn-ghost{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:active{transform:scale(.97)}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-block{width:100%}
+
+/* ── PLAYER CARD ── */
+.player-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius2);padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.player-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;color:#fff}
+.player-info{flex:1;min-width:0}
+.player-name{font-size:14px;font-weight:700;color:var(--text3);margin-bottom:2px}
+.player-pos-line{font-size:11px;color:var(--text2);margin-bottom:5px}
+.stat-bars{display:flex;gap:3px;flex-wrap:wrap}
+.stat-tag{font-size:10px;background:rgba(13,42,80,.8);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--green3)}
+.player-rating{font-size:24px;font-weight:900;color:var(--gold2);min-width:34px;text-align:center}
+
+/* ── MATCH ── */
+#match-arena{background:linear-gradient(180deg,#13402a 0%,#1a5534 50%,#13402a 100%);border-radius:var(--radius);height:200px;position:relative;overflow:hidden;margin-bottom:12px}
+.pitch-lines{position:absolute;inset:0;width:100%;height:100%}
+.score-display{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border-radius:24px;padding:6px 22px;display:flex;align-items:center;gap:14px;font-size:24px;font-weight:900;color:#fff;border:1px solid rgba(255,255,255,.15)}
+.score-sep{font-size:14px;color:var(--text2)}
+.ball-emoji{position:absolute;font-size:22px;transition:all .4s ease;pointer-events:none}
+.event-feed{height:110px;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:4px}
+.event-item{font-size:12px;padding:5px 10px;background:var(--card2);border-radius:6px;border-left:3px solid var(--border);line-height:1.4}
+.event-item.goal{border-left-color:var(--gold2);background:rgba(201,162,39,.08)}
+.event-item.miss{border-left-color:var(--red2);background:rgba(192,57,43,.07)}
+
+/* ── MINI GAMES ── */
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.mini-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:all .18s}
+.mini-card:active{transform:scale(.95);background:var(--dark3)}
+.mini-icon{font-size:34px}
+.mini-name{font-size:13px;font-weight:700;color:var(--text3)}
+.mini-desc{font-size:10px;color:var(--text2);text-align:center;line-height:1.4}
+.mini-reward{font-size:10px;color:var(--gold2);font-weight:600}
+
+/* ── MARKET ── */
+.market-player{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius2);padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+
+/* ── FORMATION ── */
+.pitch-bg{background:linear-gradient(180deg,#13402a,#1a5534);border-radius:var(--radius);padding:10px;height:230px;position:relative;margin-bottom:12px}
+.form-player{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;transform:translate(-50%,-50%);cursor:pointer}
+.form-dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;background:var(--blue2)}
+.form-dot.gk{background:var(--gold)}
+.form-label{font-size:8px;color:rgba(255,255,255,.85);max-width:34px;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* ── PROGRESS ── */
+.progress-bar{height:7px;background:var(--dark3);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green2),var(--green3));transition:width .6s}
+
+/* ── HOME INCOME ── */
+.income-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.income-row:last-child{border-bottom:none}
+.income-label{font-size:13px;color:var(--text);display:flex;align-items:center;gap:7px}
+.income-amount{font-size:13px;font-weight:700}
+.income-pos{color:var(--green3)}
+.income-neg{color:var(--red2)}
+.income-neutral{color:var(--text2)}
+.divider-line{height:1px;background:var(--border);margin:4px 0}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.kpi-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius2);padding:12px;text-align:center}
+.kpi-val{font-size:26px;font-weight:900;margin-bottom:2px}
+.kpi-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+.kpi-change{font-size:11px;margin-top:3px}
+
+/* ── NOTIFICATIONS ── */
+.notif{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;border-radius:22px;padding:9px 20px;font-size:13px;font-weight:700;z-index:900;animation:slideUp .3s ease;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+
+/* ── ANIMATIONS ── */
+@keyframes slideUp{from{transform:translateX(-50%) translateY(16px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes goalAnim{0%,100%{opacity:0;transform:translate(-50%,-50%) scale(.6)}40%,60%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+.slide-up-item{animation:slideUp .25s ease}
+
+/* ── START SCREEN ── */
+#start-screen{position:fixed;inset:0;background:var(--dark);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+#start-screen.hidden{display:none}
+.start-logo{font-size:72px;margin-bottom:12px;animation:bounce 2s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.start-title{font-size:32px;font-weight:900;color:var(--text3);letter-spacing:-1px;margin-bottom:4px;text-align:center}
+.start-sub{font-size:14px;color:var(--text2);margin-bottom:40px;text-align:center;line-height:1.5}
+.start-btn-stack{display:flex;flex-direction:column;gap:12px;width:100%;max-width:280px}
+.start-main-btn{width:100%;padding:16px;font-size:16px;font-weight:800;border:none;border-radius:14px;cursor:pointer;transition:all .15s;letter-spacing:.3px}
+.start-main-btn:active{transform:scale(.97)}
+.new-game-btn{background:var(--green2);color:#fff}
+.new-game-btn:active{background:var(--green3)}
+.continue-btn{background:var(--card2);color:var(--text3);border:1px solid var(--border)}
+.settings-start-btn{background:transparent;color:var(--text2);border:1px solid var(--border);font-size:14px;padding:12px}
+.start-version{font-size:11px;color:var(--text2);position:absolute;bottom:20px;opacity:.5}
+
+/* ── CLUB SETUP ── */
+#setup-screen{position:fixed;inset:0;background:var(--dark);z-index:1001;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px}
+#setup-screen.hidden{display:none}
+.setup-title{font-size:22px;font-weight:800;color:var(--text3);margin-bottom:6px;text-align:center}
+.setup-sub{font-size:13px;color:var(--text2);margin-bottom:28px;text-align:center}
+.setup-input{width:100%;max-width:300px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px;font-size:16px;color:var(--text3);outline:none;margin-bottom:14px;font-family:inherit}
+.setup-input:focus{border-color:var(--green2)}
+.badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%;max-width:300px;margin-bottom:24px}
+.badge-opt{height:56px;border-radius:10px;background:var(--card2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;transition:all .15s}
+.badge-opt.selected{border-color:var(--green3);background:rgba(77,190,122,.1)}
+.badge-opt:active{transform:scale(.93)}
+
+/* ── SETTINGS PANEL ── */
+#settings-panel{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:flex;align-items:flex-end;justify-content:center}
+#settings-panel.hidden{display:none}
+.settings-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;padding-bottom:40px;animation:slideSheet .3s ease}
+@keyframes slideSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.settings-title{font-size:18px;font-weight:800;color:var(--text3);margin-bottom:20px;text-align:center}
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-item:last-child{border-bottom:none}
+.settings-label{font-size:14px;color:var(--text);display:flex;align-items:center;gap:10px}
+.settings-sub{font-size:11px;color:var(--text2);display:block;margin-top:2px}
+.toggle{width:48px;height:28px;border-radius:14px;background:var(--dark3);border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--green2)}
+.toggle::after{content:'';position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s}
+.toggle.on::after{left:23px}
+.color-row{display:flex;gap:8px}
+.color-chip{width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:border-color .15s}
+.color-chip.selected{border-color:#fff}
+
+/* ── MINI GAMES FULLSCREEN ── */
+.mg-screen{display:none;position:fixed;inset:0;z-index:300;flex-direction:column;align-items:center}
+.mg-screen.show{display:flex}
+.mg-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px;position:relative}
+.mg-back{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);border-radius:22px;padding:8px 16px;font-size:13px;color:#fff;cursor:pointer;font-weight:600}
+
+/* juggle */
+#juggle-game{background:linear-gradient(180deg,#071a2e,#0d2a4a);}
+#juggle-canvas{width:100%;max-width:420px;flex:1;position:relative;overflow:hidden;touch-action:none}
+/* Ball is a proper DOM circle — reliable hit detection */
+#juggle-ball{
+  position:absolute;
+  width:60px;height:60px;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 35%, #fff 0%, #e8e8e8 20%, #c0c0c0 55%, #888 100%);
+  box-shadow:inset -4px -4px 10px rgba(0,0,0,.4), 0 4px 18px rgba(0,0,0,.5);
+  cursor:pointer;
+  /* seam lines via pseudo – decoration only */
+  border:2px solid #666;
+  /* position set by JS via left/top of ball CENTER */
+  transform:translate(-50%,-50%);
+  /* pentagon pattern overlay */
+  background-image:
+    radial-gradient(circle at 38% 35%, rgba(255,255,255,.9) 0%, rgba(220,220,220,.6) 30%, transparent 65%),
+    radial-gradient(circle at 62% 65%, rgba(0,0,0,.25) 0%, transparent 50%);
+  background-color:#ddd;
+}
+#juggle-ball::before{
+  content:'';position:absolute;inset:4px;border-radius:50%;
+  border:1.5px solid rgba(0,0,0,.15);
+  background:repeating-conic-gradient(rgba(0,0,0,.07) 0deg 36deg, transparent 36deg 72deg);
+  mix-blend-mode:multiply;
+}
+#juggle-score{font-size:56px;font-weight:900;color:#fff}
+#juggle-msg{font-size:15px;color:var(--gold2);min-height:22px;text-align:center;padding:0 12px}
+
+/* 2048 */
+#game2048{background:var(--dark);padding-top:0}
+#grid2048{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;background:var(--dark3);border-radius:12px;padding:9px;width:calc(100% - 32px);max-width:360px}
+.cell2048{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;background:var(--dark2);color:var(--text2)}
+.c2{background:#1a5c34;color:#fff;font-size:12px}.c4{background:#238b4a;color:#fff;font-size:12px}
+.c8{background:#b8961f;color:#0e1621;font-size:11px}.c16{background:#d4761a;color:#fff;font-size:11px}
+.c32{background:#b52e2e;color:#fff;font-size:11px}.c64{background:#7c3aad;color:#fff;font-size:11px}
+.c128{background:#1d6fa0;color:#fff;font-size:10px}.c256{background:#226e3a;color:#fff;font-size:10px}
+.c512{background:#c47d10;color:#fff;font-size:10px}.c1024{background:#c0302f;color:#fff;font-size:9px}
+.c2048{background:#e8c337;color:#0e1621;font-size:9px}
+#score2048-val{font-size:32px;font-weight:900;color:#fff}
+#score2048-best{font-size:12px;color:var(--text2)}
+
+/* pass game */
+#pass-game{background:linear-gradient(180deg,#071a0d,#0d2a14);justify-content:center}
+#pass-bar-wrap{width:calc(100% - 40px);max-width:340px;height:38px;background:var(--dark3);border-radius:19px;overflow:hidden;position:relative;margin:16px 0}
+#pass-bar{height:100%;width:0;border-radius:19px;background:linear-gradient(90deg,var(--green2),var(--gold2))}
+#pass-target{position:absolute;top:0;height:100%;background:rgba(245,208,94,.22);border:2px solid var(--gold2);border-radius:19px}
+#pass-btn{width:160px;height:160px;border-radius:50%;background:var(--green);border:4px solid var(--green3);font-size:56px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#pass-btn:active{transform:scale(.92)}
+#pass-score-val{font-size:48px;font-weight:900;color:#fff}
+#pass-combo{font-size:15px;color:var(--gold2);min-height:22px}
+#pass-lives{font-size:22px;letter-spacing:5px}
+
+/* penalty */
+#penalty-game{background:linear-gradient(180deg,#071428,#0d2a18 60%);padding-top:70px}
+#penalty-goal{width:calc(100% - 40px);max-width:320px;height:150px;border:4px solid rgba(255,255,255,.9);border-bottom:none;border-radius:3px 3px 0 0;position:relative}
+.goal-zone{position:absolute;width:33.33%;height:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid rgba(255,255,255,.08);transition:background .1s;color:rgba(255,255,255,.4)}
+.goal-zone:active{background:rgba(77,190,122,.3)}
+.goal-zone.hit-flash{background:rgba(77,190,122,.55)!important;color:#fff}
+.goal-zone.miss-flash{background:rgba(192,57,43,.45)!important;color:#fff}
+#penalty-status{font-size:26px;font-weight:800;color:#fff;min-height:36px}
+#penalty-dots{font-size:20px;letter-spacing:8px}
+#penalty-kicks{font-size:13px;color:var(--text2)}
+
+/* goal flash */
+.goal-flash-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:30px;font-weight:900;color:#fff;pointer-events:none;animation:goalAnim 1.4s ease forwards;z-index:20;white-space:nowrap;text-shadow:0 0 30px rgba(245,208,94,.8)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="top-bar" id="topBar" style="display:none">
+    <div class="club-name">
+      <span id="clubBadgeDisplay">⚽</span>
+      <span id="clubNameDisplay">俱乐部</span>
+    </div>
+    <div class="resources" style="align-items:center;gap:8px">
+      <div class="res">💰<span id="moneyDisplay">5000</span>万</div>
+      <div class="res res-stars">⭐<span id="starsDisplay">0</span></div>
+      <div class="settings-btn" onclick="openSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENS -->
+  <div id="screens">
+
+    <!-- HOME: MANAGEMENT DASHBOARD -->
+    <div class="screen active" id="screen-home">
+      <div class="screen-pad">
+
+        <!-- Season header -->
+        <div class="card" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">赛季 <span id="seasonNum">1</span> · 第 <span id="weekDisplay">1</span> / 20 周</div>
+              <div style="font-size:20px;font-weight:900;color:var(--text3)">联赛排名 <span id="rankDisplay" style="color:var(--gold2)">#1</span></div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:2px">积分</div>
+              <div style="font-size:28px;font-weight:900;color:var(--green3)" id="pointsDisplay">0</div>
+            </div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="seasonProgress" style="width:5%"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text2)">
+            <span>赛季开始</span><span>赛季决赛</span>
+          </div>
+        </div>
+
+        <!-- KPI grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--gold2)" id="teamRating">72</div>
+            <div class="kpi-label">球队综合</div>
+            <div class="kpi-change" id="teamRatingChange" style="color:var(--text2)">——</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--green3)" id="recordDisplay">0-0-0</div>
+            <div class="kpi-label">胜 平 负</div>
+            <div class="kpi-change" id="winRateDisplay" style="color:var(--text2)">胜率 —</div>
+          </div>
+        </div>
+
+        <!-- Revenue & Expenses -->
+        <div class="card">
+          <div class="card-title">📊 本赛季收支</div>
+          <div class="income-row">
+            <span class="income-label">🏟 比赛奖金收入</span>
+            <span class="income-amount income-pos">+<span id="incomeMatch">0</span>万</span>
+          </div>
+          <div class="income-row">
+            <span class="income-label">🎮 小游戏奖励</span>
+            <span class="income-amount income-pos">+<span id="incomeGames">0</span>万</span>
+          </div>
+          <div class="income-row">
+            <span class="income-label">💸 转会收入</span>
+            <span class="income-amount income-pos">+<span id="incomeSell">0</span>万</span>
+          </div>
+          <div class="divider-line" style="margin:8px 0"></div>
+          <div class="income-row">
+            <span class="income-label">📋 球员薪资</span>
+            <span class="income-amount income-neg">-<span id="expWages">0</span>万</span>
+          </div>
+          <div class="income-row">
+            <span class="income-label">🛒 转会支出</span>
+            <span class="income-amount income-neg">-<span id="expTransfer">0</span>万</span>
+          </div>
+          <div class="divider-line" style="margin:8px 0"></div>
+          <div class="income-row" style="padding-bottom:0">
+            <span class="income-label" style="font-weight:700;color:var(--text3)">📈 净收支</span>
+            <span class="income-amount" id="netIncome" style="font-size:16px;font-weight:900">+0万</span>
+          </div>
+        </div>
+
+        <!-- Club assets -->
+        <div class="card">
+          <div class="card-title">🏢 俱乐部资产</div>
+          <div class="income-row">
+            <span class="income-label">💰 账户资金</span>
+            <span class="income-amount income-neutral" style="font-size:16px;font-weight:800">
+              <span id="homeMoney">5000</span>万
+            </span>
+          </div>
+          <div class="income-row">
+            <span class="income-label">👥 球员总身价</span>
+            <span class="income-amount income-pos"><span id="squadValue">0</span>万</span>
+          </div>
+          <div class="income-row" style="padding-bottom:0">
+            <span class="income-label">⭐ 荣誉积星</span>
+            <span class="income-amount income-neutral"><span id="homeStars">0</span> 枚</span>
+          </div>
+        </div>
+
+        <!-- Formation quick view -->
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            <span>📋 出场阵容 <span id="formationLabel" style="color:var(--green3)">4-4-2</span></span>
+            <span style="font-size:11px;color:var(--text2)" id="squadReadyLabel"></span>
+          </div>
+          <div class="pitch-bg" id="formationGrid"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" style="flex:1" onclick="showScreen('squad')">管理球队</button>
+            <button class="btn btn-gold btn-sm" style="flex:1" onclick="startMatch()">▶ 开始比赛</button>
+          </div>
+        </div>
+
+        <!-- League table compact -->
+        <div class="card">
+          <div class="card-title">🏆 联赛积分榜</div>
+          <div id="leagueTableHome"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SQUAD -->
+    <div class="screen" id="screen-squad">
+      <div class="screen-pad">
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:14px;font-weight:700">球员名单 · <span id="squadCount">0</span>人</span>
+          <button class="btn btn-sm btn-primary" onclick="showScreen('market')">＋ 转会市场</button>
+        </div>
+        <div id="squadList"></div>
+      </div>
+    </div>
+
+    <!-- MATCH -->
+    <div class="screen" id="screen-match">
+      <div class="screen-pad">
+        <div id="match-arena">
+          <svg class="pitch-lines" viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <rect width="360" height="200" fill="none"/>
+            <line x1="180" y1="0" x2="180" y2="200" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+            <circle cx="180" cy="100" r="28" stroke="rgba(255,255,255,.12)" fill="none" stroke-width="1"/>
+            <circle cx="180" cy="100" r="2" fill="rgba(255,255,255,.25)"/>
+            <rect x="18" y="58" width="48" height="84" stroke="rgba(255,255,255,.12)" fill="none" stroke-width="1"/>
+            <rect x="294" y="58" width="48" height="84" stroke="rgba(255,255,255,.12)" fill="none" stroke-width="1"/>
+            <rect x="18" y="80" width="18" height="40" stroke="rgba(255,255,255,.18)" fill="none" stroke-width="1"/>
+            <rect x="324" y="80" width="18" height="40" stroke="rgba(255,255,255,.18)" fill="none" stroke-width="1"/>
+          </svg>
+          <div class="score-display">
+            <div id="homeScore">0</div>
+            <div class="score-sep">—</div>
+            <div id="awayScore">0</div>
+          </div>
+          <div id="matchBall" class="ball-emoji" style="left:50%;top:50%">⚽</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:12px;color:var(--text2)">🏟 <span id="matchInfo">等待比赛</span></div>
+          <div style="font-size:13px;font-weight:800;color:var(--gold2)" id="matchClock">00:00</div>
+        </div>
+        <div class="card">
+          <div class="card-title">📡 实况播报</div>
+          <div class="event-feed" id="eventFeed"><div class="event-item">等待比赛开始…</div></div>
+        </div>
+        <button class="btn btn-gold btn-block" id="matchBtn" onclick="startMatch()">▶ 开始比赛</button>
+      </div>
+    </div>
+
+    <!-- MARKET -->
+    <div class="screen" id="screen-market">
+      <div class="screen-pad">
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:14px;font-weight:700">转会市场</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">比赛结束后市场自动刷新</div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="refreshMarket()">🔄 刷新</button>
+        </div>
+        <div id="marketList"></div>
+      </div>
+    </div>
+
+    <!-- MINI GAMES -->
+    <div class="screen" id="screen-games">
+      <div class="screen-pad">
+        <div class="card" style="margin-bottom:10px">
+          <div class="card-title">🎮 小游戏中心</div>
+          <div style="font-size:12px;color:var(--text2)">赢得小游戏可提升球员属性与获取金币奖励</div>
+        </div>
+        <div class="mini-grid">
+          <div class="mini-card" onclick="launchJuggle()">
+            <div class="mini-icon">⚽</div>
+            <div class="mini-name">颠球挑战</div>
+            <div class="mini-desc">点击飞球不落地，提升速度属性</div>
+            <div class="mini-reward">💰 金币 + 速度↑</div>
+          </div>
+          <div class="mini-card" onclick="launch2048()">
+            <div class="mini-icon">🔢</div>
+            <div class="mini-name">球员2048</div>
+            <div class="mini-desc">滑动合成球员，触碰巨星解锁</div>
+            <div class="mini-reward">💰 高额奖励</div>
+          </div>
+          <div class="mini-card" onclick="launchPass()">
+            <div class="mini-icon">🎯</div>
+            <div class="mini-name">传球节奏</div>
+            <div class="mini-desc">卡准节拍完成传球，提升传球</div>
+            <div class="mini-reward">💰 金币 + 传球↑</div>
+          </div>
+          <div class="mini-card" onclick="launchPenalty()">
+            <div class="mini-icon">🥅</div>
+            <div class="mini-name">点球大战</div>
+            <div class="mini-desc">选择方向破门，赢得积分奖励</div>
+            <div class="mini-reward">💰 金币 + 积分↑</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📊 游戏历史记录</div>
+          <div id="gameStats"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav" style="display:none">
+    <button class="nav-btn active" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      主页
+    </button>
+    <button class="nav-btn" onclick="showScreen('squad')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+      球队
+    </button>
+    <button class="nav-btn" onclick="showScreen('match')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+      比赛
+    </button>
+    <button class="nav-btn" onclick="showScreen('market')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      市场
+    </button>
+    <button class="nav-btn" onclick="showScreen('games')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01M7 12h.01M17 12h.01M7 9v6M10 12H4"/></svg>
+      小游戏
+    </button>
+  </nav>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen">
+  <div class="start-logo">⚽</div>
+  <div class="start-title">足球经理</div>
+  <div class="start-sub">组建球队，征战联赛<br>挑战小游戏，成就足球帝国</div>
+  <div class="start-btn-stack">
+    <button class="start-main-btn new-game-btn" onclick="startNewGame()">⚡ 新游戏</button>
+    <button class="start-main-btn continue-btn" id="continueBtn" style="display:none" onclick="continueGame()">▶ 继续游戏</button>
+    <button class="start-main-btn settings-start-btn" onclick="openSettings()">⚙ 设置</button>
+  </div>
+  <div class="start-version">足球经理 v2.0</div>
+</div>
+
+<!-- CLUB SETUP SCREEN -->
+<div id="setup-screen" class="hidden">
+  <div style="font-size:52px;margin-bottom:12px">🏟</div>
+  <div class="setup-title">创建你的俱乐部</div>
+  <div class="setup-sub">为你的球队起一个响亮的名字</div>
+  <input class="setup-input" id="clubNameInput" type="text" placeholder="俱乐部名称..." maxlength="12">
+  <div style="font-size:13px;color:var(--text2);margin-bottom:10px;align-self:flex-start;max-width:300px;padding-left:2px">选择队徽</div>
+  <div class="badge-grid">
+    <div class="badge-opt selected" data-badge="⚽" onclick="selectBadge(this)">⚽</div>
+    <div class="badge-opt" data-badge="🦁" onclick="selectBadge(this)">🦁</div>
+    <div class="badge-opt" data-badge="🦅" onclick="selectBadge(this)">🦅</div>
+    <div class="badge-opt" data-badge="🐉" onclick="selectBadge(this)">🐉</div>
+    <div class="badge-opt" data-badge="⚡" onclick="selectBadge(this)">⚡</div>
+    <div class="badge-opt" data-badge="🔥" onclick="selectBadge(this)">🔥</div>
+    <div class="badge-opt" data-badge="💎" onclick="selectBadge(this)">💎</div>
+    <div class="badge-opt" data-badge="🌟" onclick="selectBadge(this)">🌟</div>
+  </div>
+  <button class="btn btn-primary" style="width:100%;max-width:300px;padding:15px;font-size:15px" onclick="confirmSetup()">开始建队 →</button>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel" class="hidden" onclick="closeSettingsOutside(event)">
+  <div class="settings-sheet">
+    <div class="settings-title">⚙ 游戏设置</div>
+
+    <div class="settings-item">
+      <div class="settings-label">
+        🔊 音效提示
+        <small class="settings-sub">进球动画音效反馈</small>
+      </div>
+      <button class="toggle on" id="toggle-sound" onclick="toggleSetting('sound',this)"></button>
+    </div>
+
+    <div class="settings-item">
+      <div class="settings-label">
+        📳 震动反馈
+        <small class="settings-sub">点击操作时震动</small>
+      </div>
+      <button class="toggle on" id="toggle-vibrate" onclick="toggleSetting('vibrate',this)"></button>
+    </div>
+
+    <div class="settings-item">
+      <div class="settings-label">
+        ⚡ 快速比赛
+        <small class="settings-sub">压缩比赛时长（10秒结束）</small>
+      </div>
+      <button class="toggle" id="toggle-fast" onclick="toggleSetting('fast',this)"></button>
+    </div>
+
+    <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:10px">
+      <div class="settings-label">🎨 主题色</div>
+      <div class="color-row">
+        <div class="color-chip selected" style="background:#25a05a" data-color="green" onclick="setTheme('green',this)"></div>
+        <div class="color-chip" style="background:#1e88e5" data-color="blue" onclick="setTheme('blue',this)"></div>
+        <div class="color-chip" style="background:#c9a227" data-color="gold" onclick="setTheme('gold',this)"></div>
+        <div class="color-chip" style="background:#c0392b" data-color="red" onclick="setTheme('red',this)"></div>
+        <div class="color-chip" style="background:#8e44ad" data-color="purple" onclick="setTheme('purple',this)"></div>
+      </div>
+    </div>
+
+    <div class="settings-item" style="border-bottom:none">
+      <div class="settings-label">
+        🏷 俱乐部名称
+        <small class="settings-sub" id="currentClubNameLabel">我的俱乐部</small>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="renameClub()">修改</button>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:14px 0"></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-danger btn-sm" style="flex:1" onclick="confirmReset()">🗑 重置存档</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="closeSettings()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- MINI GAMES -->
+<div id="juggle-game" class="mg-screen">
+  <div class="mg-header">
+    <button class="mg-back" onclick="closeJuggle()">← 返回</button>
+    <div style="font-size:13px;color:rgba(255,255,255,.5)">颠球挑战</div>
+    <div style="font-size:13px;color:var(--gold2)">最高: <span id="juggle-best-val">0</span></div>
+  </div>
+  <div id="juggle-score">0</div>
+  <div id="juggle-msg" style="margin:4px 0 8px">点击下方开始</div>
+  <div id="juggle-canvas">
+    <div id="juggle-ball"></div>
+  </div>
+  <button class="btn btn-primary" style="margin-top:14px;padding:12px 32px;font-size:15px" onclick="juggleStart()">开始颠球</button>
+</div>
+
+<div id="game2048" class="mg-screen" style="background:var(--dark);padding:0">
+  <div class="mg-header" style="background:var(--dark2);border-bottom:1px solid var(--border);width:100%">
+    <button class="mg-back" onclick="close2048()" style="background:var(--card2)">← 返回</button>
+    <div style="text-align:center">
+      <div id="score2048-val">0</div>
+      <div id="score2048-best">历史最高: 0</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="reset2048()">重置</button>
+  </div>
+  <div style="padding:14px 16px 8px;width:100%;font-size:12px;color:var(--text2);text-align:center">
+    滑动方格合成球员 · 解锁 2048 召唤巨星
+  </div>
+  <div id="grid2048"></div>
+</div>
+
+<div id="pass-game" class="mg-screen">
+  <div class="mg-header" style="position:absolute;top:0;left:0;right:0">
+    <button class="mg-back" onclick="closePass()">← 返回</button>
+    <div style="font-size:13px;color:rgba(255,255,255,.5)">传球节奏</div>
+    <div style="font-size:13px;color:var(--gold2)">最高: <span id="pass-best">0</span></div>
+  </div>
+  <div id="pass-score-val">0</div>
+  <div id="pass-combo">按球开始！</div>
+  <div id="pass-lives">❤️❤️❤️</div>
+  <div id="pass-bar-wrap">
+    <div id="pass-bar"></div>
+    <div id="pass-target"></div>
+  </div>
+  <div id="pass-btn" onclick="passTap()">⚽</div>
+</div>
+
+<div id="penalty-game" class="mg-screen">
+  <div style="position:absolute;top:16px;left:16px">
+    <button class="mg-back" onclick="closePenalty()">← 返回</button>
+  </div>
+  <div id="penalty-status">选择射门方向</div>
+  <div id="penalty-kicks" style="margin:4px 0">剩余：5次</div>
+  <div id="penalty-dots">⚪⚪⚪⚪⚪</div>
+  <div id="penalty-goal">
+    <div class="goal-zone" style="left:0;top:0" onclick="penaltyKick(0)">↖</div>
+    <div class="goal-zone" style="left:33.33%;top:0" onclick="penaltyKick(1)">⬆</div>
+    <div class="goal-zone" style="left:66.66%;top:0" onclick="penaltyKick(2)">↗</div>
+    <div class="goal-zone" style="left:0;top:50%" onclick="penaltyKick(3)">←</div>
+    <div class="goal-zone" style="left:33.33%;top:50%" onclick="penaltyKick(4)">⬇</div>
+    <div class="goal-zone" style="left:66.66%;top:50%" onclick="penaltyKick(5)">→</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════
+const POS_LIST=['GK','CB','CB','LB','RB','CM','CM','LM','RM','ST','ST'];
+const POS_XY=[[50,88],[25,70],[50,70],[12,65],[88,65],[30,50],[70,50],[12,38],[88,38],[35,20],[65,20]];
+const FN=['李','王','张','刘','陈','杨','赵','黄','周','吴','林','孙','徐','马','朱','郑','高','钱','冯','蒋'];
+const LN=['明','强','伟','军','勇','华','峰','涛','亮','超','磊','飞','健','刚','宇','杰','龙','博','鹏','辉'];
+const OPPS=['FC龙城','虎啸联队','巅峰战士','皇家雄鹰','金盾俱乐部','海浪队','铁卫军','闪电FC','银狐队'];
+const THEME_COLORS={green:'#25a05a',blue:'#1e88e5',gold:'#c9a227',red:'#c0392b',purple:'#8e44ad'};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let G={
+  clubName:'我的俱乐部',clubBadge:'⚽',
+  money:5000,stars:0,week:1,season:1,
+  record:{w:0,d:0,l:0},points:0,rank:1,
+  squad:[],market:[],leagueTable:[],
+  matchRunning:false,
+  income:{match:0,games:0,sell:0},
+  expense:{wages:0,transfer:0},
+  gameStats:{juggleBest:0,best2048:0,passBest:0,penaltyWins:0},
+  settings:{sound:true,vibrate:true,fast:false,theme:'green'},
+  hasData:false
+};
+
+// ═══════════════════════════════════════════════
+// SAVE / LOAD
+// ═══════════════════════════════════════════════
+function saveGame(){try{localStorage.setItem('fcm_v2',JSON.stringify(G));}catch(e){}}
+function loadGame(){
+  try{
+    const d=localStorage.getItem('fcm_v2');
+    if(d){Object.assign(G,JSON.parse(d));return true;}
+  }catch(e){}
+  return false;
+}
+
+// ═══════════════════════════════════════════════
+// START SCREEN LOGIC
+// ═══════════════════════════════════════════════
+function bootGame(){
+  const hasSave=loadGame();
+  if(hasSave&&G.hasData){
+    document.getElementById('continueBtn').style.display='block';
+  }
+  applySettings();
+}
+
+function startNewGame(){
+  // reset state
+  G={
+    clubName:'我的俱乐部',clubBadge:'⚽',
+    money:5000,stars:0,week:1,season:1,
+    record:{w:0,d:0,l:0},points:0,rank:1,
+    squad:[],market:[],leagueTable:[],
+    matchRunning:false,
+    income:{match:0,games:0,sell:0},
+    expense:{wages:0,transfer:0},
+    gameStats:{juggleBest:0,best2048:0,passBest:0,penaltyWins:0},
+    settings:G.settings||{sound:true,vibrate:true,fast:false,theme:'green'},
+    hasData:true
+  };
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('setup-screen').classList.remove('hidden');
+}
+
+function continueGame(){
+  document.getElementById('start-screen').classList.add('hidden');
+  enterGame();
+}
+
+let selectedBadge='⚽';
+function selectBadge(el){
+  document.querySelectorAll('.badge-opt').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedBadge=el.dataset.badge;
+}
+
+function confirmSetup(){
+  const inp=document.getElementById('clubNameInput').value.trim();
+  G.clubName=inp||'我的俱乐部';
+  G.clubBadge=selectedBadge;
+  document.getElementById('setup-screen').classList.add('hidden');
+  buildNewGame();
+  enterGame();
+}
+
+function buildNewGame(){
+  generateSquad(11);
+  generateLeagueTable();
+  refreshMarket();
+}
+
+function enterGame(){
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('nav').style.display='flex';
+  updateHeader();
+  renderSquad();
+  renderFormation();
+  renderMarket();
+  renderLeagueHome();
+  updateHomeStats();
+  loadGameStats();
+  saveGame();
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════
+function openSettings(){
+  document.getElementById('settings-panel').classList.remove('hidden');
+  applySettingsUI();
+}
+function closeSettings(){document.getElementById('settings-panel').classList.add('hidden');}
+function closeSettingsOutside(e){if(e.target===document.getElementById('settings-panel'))closeSettings();}
+
+function applySettingsUI(){
+  const s=G.settings;
+  setToggleState('toggle-sound',s.sound);
+  setToggleState('toggle-vibrate',s.vibrate);
+  setToggleState('toggle-fast',s.fast);
+  document.getElementById('currentClubNameLabel').textContent=G.clubName;
+  document.querySelectorAll('.color-chip').forEach(c=>{
+    c.classList.toggle('selected',c.dataset.color===s.theme);
+  });
+}
+function setToggleState(id,on){
+  const t=document.getElementById(id);
+  if(on)t.classList.add('on');else t.classList.remove('on');
+}
+function toggleSetting(key,btn){
+  G.settings[key]=!G.settings[key];
+  if(G.settings[key])btn.classList.add('on');else btn.classList.remove('on');
+  applySettings();saveGame();
+}
+function applySettings(){
+  const theme=G.settings.theme||'green';
+  const col=THEME_COLORS[theme]||THEME_COLORS.green;
+  document.documentElement.style.setProperty('--green2',col);
+  document.documentElement.style.setProperty('--green3',lighten(col,0.2));
+}
+function lighten(hex,amt){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const nr=Math.min(255,Math.round(r+(255-r)*amt));
+  const ng=Math.min(255,Math.round(g+(255-g)*amt));
+  const nb=Math.min(255,Math.round(b+(255-b)*amt));
+  return '#'+[nr,ng,nb].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function setTheme(color,el){
+  G.settings.theme=color;
+  document.querySelectorAll('.color-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  applySettings();saveGame();
+}
+function renameClub(){
+  const n=prompt('新俱乐部名称：',G.clubName);
+  if(n&&n.trim()){G.clubName=n.trim();updateHeader();document.getElementById('currentClubNameLabel').textContent=G.clubName;saveGame();}
+}
+function confirmReset(){
+  if(confirm('确定要清空所有存档吗？此操作无法撤销。')){
+    localStorage.removeItem('fcm_v2');
+    location.reload();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const sc=document.getElementById('screen-'+name);
+  if(sc)sc.classList.add('active');
+  const idx=['home','squad','match','market','games'].indexOf(name);
+  if(idx>=0)document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if(name==='squad')renderSquad();
+  if(name==='market')renderMarket();
+  if(name==='home'){renderFormation();updateHomeStats();renderLeagueHome();}
+  if(name==='games')loadGameStats();
+}
+
+// ═══════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════
+function updateHeader(){
+  document.getElementById('moneyDisplay').textContent=G.money.toLocaleString();
+  document.getElementById('starsDisplay').textContent=G.stars;
+  document.getElementById('clubNameDisplay').textContent=G.clubName;
+  document.getElementById('clubBadgeDisplay').textContent=G.clubBadge;
+}
+
+function updateHomeStats(){
+  document.getElementById('weekDisplay').textContent=G.week;
+  document.getElementById('seasonNum').textContent=G.season;
+  document.getElementById('seasonProgress').style.width=(G.week/20*100)+'%';
+  document.getElementById('pointsDisplay').textContent=G.points;
+  document.getElementById('rankDisplay').textContent='#'+G.rank;
+  document.getElementById('recordDisplay').textContent=`${G.record.w}-${G.record.d}-${G.record.l}`;
+
+  const total=G.record.w+G.record.d+G.record.l;
+  const wr=total>0?Math.round(G.record.w/total*100):0;
+  document.getElementById('winRateDisplay').textContent=total>0?`胜率 ${wr}%`:'暂无战绩';
+
+  const avg=G.squad.length?Math.round(G.squad.slice(0,11).reduce((s,p)=>s+p.rating,0)/Math.min(11,G.squad.length)):0;
+  document.getElementById('teamRating').textContent=avg||'--';
+
+  // income/expense
+  document.getElementById('incomeMatch').textContent=G.income.match.toLocaleString();
+  document.getElementById('incomeGames').textContent=G.income.games.toLocaleString();
+  document.getElementById('incomeSell').textContent=G.income.sell.toLocaleString();
+  const wages=Math.floor(G.squad.length*20);
+  G.expense.wages=wages;
+  document.getElementById('expWages').textContent=wages.toLocaleString();
+  document.getElementById('expTransfer').textContent=G.expense.transfer.toLocaleString();
+  const net=(G.income.match+G.income.games+G.income.sell)-(G.expense.wages+G.expense.transfer);
+  const netEl=document.getElementById('netIncome');
+  netEl.textContent=(net>=0?'+':'')+net.toLocaleString()+'万';
+  netEl.style.color=net>=0?'var(--green3)':'var(--red2)';
+
+  // assets
+  document.getElementById('homeMoney').textContent=G.money.toLocaleString();
+  const totalVal=G.squad.reduce((s,p)=>s+p.value,0);
+  document.getElementById('squadValue').textContent=totalVal.toLocaleString();
+  document.getElementById('homeStars').textContent=G.stars;
+
+  // squad ready
+  document.getElementById('squadReadyLabel').textContent=G.squad.length>=11?`${G.squad.length}人 ✓`:`${G.squad.length}/11人 ⚠`;
+}
+
+// ═══════════════════════════════════════════════
+// PLAYER FACTORIES
+// ═══════════════════════════════════════════════
+function randName(){return FN[Math.floor(Math.random()*FN.length)]+LN[Math.floor(Math.random()*LN.length)];}
+function createPlayer(pos,rating){
+  rating=Math.min(99,rating||Math.floor(60+Math.random()*25));
+  return{
+    id:Date.now()+Math.random(),name:randName(),pos,rating,
+    pace:Math.floor(60+Math.random()*30),shoot:Math.floor(60+Math.random()*30),
+    pass:Math.floor(60+Math.random()*30),defend:Math.floor(60+Math.random()*30),
+    value:rating*Math.floor(60+Math.random()*120)
+  };
+}
+function generateSquad(n){for(let i=0;i<n;i++)G.squad.push(createPlayer(POS_LIST[i]||'CM',65+Math.floor(Math.random()*15)));}
+function posColor(pos){const c={GK:'#b8961f',CB:'#1565c0',LB:'#1268b8',RB:'#1268b8',CM:'#1a6b3c',LM:'#1a6b3c',RM:'#1a6b3c',ST:'#a02020',CAM:'#7c3aad'};return c[pos]||'#444';}
+
+// ═══════════════════════════════════════════════
+// SQUAD
+// ═══════════════════════════════════════════════
+function renderSquad(){
+  document.getElementById('squadCount').textContent=G.squad.length;
+  const list=document.getElementById('squadList');list.innerHTML='';
+  G.squad.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='player-card';
+    d.innerHTML=`
+      <div class="player-avatar" style="background:${posColor(p.pos)}">${p.pos}</div>
+      <div class="player-info">
+        <div class="player-name">${p.name}</div>
+        <div class="player-pos-line">${p.pos} · 综合 <span style="color:var(--gold2);font-weight:700">${p.rating}</span> · 身价 ${p.value}万</div>
+        <div class="stat-bars">
+          <span class="stat-tag">速${p.pace}</span>
+          <span class="stat-tag">射${p.shoot}</span>
+          <span class="stat-tag">传${p.pass}</span>
+          <span class="stat-tag">守${p.defend}</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="player-rating">${p.rating}</div>
+        <button class="btn btn-danger btn-sm" onclick="sellPlayer(${i})" style="margin-top:4px;font-size:11px">出售</button>
+      </div>`;
+    list.appendChild(d);
+  });
+}
+
+function sellPlayer(i){
+  const p=G.squad[i];if(!p)return;
+  const val=Math.floor(p.value+Math.random()*200);
+  G.money+=val;G.income.sell+=val;
+  G.squad.splice(i,1);
+  showNotif(`💸 出售 ${p.name}，获得 ${val}万`);
+  updateHeader();renderSquad();renderFormation();saveGame();
+}
+
+// ═══════════════════════════════════════════════
+// MARKET
+// ═══════════════════════════════════════════════
+function refreshMarket(){
+  G.market=[];
+  const positions=['GK','CB','CB','LB','RB','CM','CM','LM','ST','ST','CAM'];
+  for(let i=0;i<9;i++){
+    const pos=positions[Math.floor(Math.random()*positions.length)];
+    const r=50+Math.floor(Math.random()*40);
+    G.market.push({...createPlayer(pos,r),price:r*Math.floor(80+Math.random()*250)});
+  }
+  renderMarket();
+}
+
+function renderMarket(){
+  const list=document.getElementById('marketList');if(!list)return;list.innerHTML='';
+  G.market.forEach((p,i)=>{
+    const ok=G.money>=p.price;
+    const d=document.createElement('div');d.className='market-player';
+    d.innerHTML=`
+      <div class="player-avatar" style="background:${posColor(p.pos)};width:40px;height:40px;font-size:10px">${p.pos}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--text3)">${p.name}</div>
+        <div style="font-size:11px;color:var(--text2);margin:2px 0">${p.pos} · 综合 <span style="color:var(--gold2);font-weight:700">${p.rating}</span></div>
+        <div style="font-size:10px;color:var(--text2)">速${p.pace} 射${p.shoot} 传${p.pass} 守${p.defend}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:700;color:var(--gold2);margin-bottom:6px">💰${p.price}万</div>
+        <button class="btn btn-sm ${ok?'btn-primary':'btn-danger'}" onclick="buyPlayer(${i})">${ok?'签约':'不足'}</button>
+      </div>`;
+    list.appendChild(d);
+  });
+}
+
+function buyPlayer(i){
+  const p=G.market[i];if(!p)return;
+  if(G.money<p.price){showNotif('💸 资金不足！');return;}
+  if(G.squad.length>=22){showNotif('⚠ 球队已满（最多22人）');return;}
+  G.money-=p.price;G.expense.transfer+=p.price;
+  G.squad.push(p);G.market.splice(i,1);
+  showNotif(`✅ 签约 ${p.name}！`);
+  updateHeader();renderMarket();saveGame();
+}
+
+// ═══════════════════════════════════════════════
+// LEAGUE TABLE
+// ═══════════════════════════════════════════════
+function generateLeagueTable(){
+  G.leagueTable=[];
+  ['我的俱乐部',...OPPS.slice(0,7)].forEach((name,i)=>{
+    G.leagueTable.push({name,pts:i===0?G.points:Math.floor(Math.random()*18),gd:Math.floor(Math.random()*10)-5});
+  });
+  sortLeague();
+}
+function sortLeague(){
+  G.leagueTable.sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
+  G.rank=G.leagueTable.findIndex(t=>t.name==='我的俱乐部')+1;
+}
+function renderLeagueHome(){
+  const el=document.getElementById('leagueTableHome');if(!el)return;el.innerHTML='';
+  // header
+  const header=document.createElement('div');
+  header.style.cssText='display:grid;grid-template-columns:20px 1fr 36px 36px;gap:6px;padding:4px 6px 8px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px';
+  header.innerHTML='<span>#</span><span>球队</span><span style="text-align:right">积分</span><span style="text-align:right">净胜</span>';
+  el.appendChild(header);
+  G.leagueTable.forEach((t,i)=>{
+    const isMe=t.name==='我的俱乐部';
+    const row=document.createElement('div');
+    row.style.cssText=`display:grid;grid-template-columns:20px 1fr 36px 36px;gap:6px;padding:7px 6px;border-radius:7px;font-size:13px;align-items:center;${isMe?'background:rgba(77,190,122,.1);border:1px solid rgba(77,190,122,.2);margin-bottom:2px':'border-bottom:1px solid var(--border)'}`;
+    row.innerHTML=`<span style="color:${i<3?'var(--gold2)':'var(--text2)'};font-weight:700">${i+1}</span>
+      <span style="font-weight:${isMe?700:400};color:${isMe?'var(--green3)':'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${isMe?G.clubBadge+' ':''} ${t.name}</span>
+      <span style="text-align:right;font-weight:700;color:var(--text3)">${t.pts}</span>
+      <span style="text-align:right;color:${t.gd>0?'var(--green3)':t.gd<0?'var(--red2)':'var(--text2)'}">${t.gd>0?'+':''}${t.gd}</span>`;
+    el.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// FORMATION
+// ═══════════════════════════════════════════════
+function renderFormation(){
+  const grid=document.getElementById('formationGrid');grid.innerHTML='';
+  G.squad.slice(0,11).forEach((p,i)=>{
+    const [x,y]=POS_XY[i];
+    const el=document.createElement('div');el.className='form-player';
+    el.style.left=x+'%';el.style.top=y+'%';
+    el.innerHTML=`<div class="form-dot${i===0?' gk':''}">${p.pos}</div><div class="form-label">${p.name}</div>`;
+    grid.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// MATCH ENGINE
+// ═══════════════════════════════════════════════
+let matchInt=null;
+function startMatch(){
+  if(G.squad.length<11){showNotif('⚠ 至少需要11名球员参赛！');return;}
+  showScreen('match');
+  if(G.matchRunning)return;
+  G.matchRunning=true;
+  const btn=document.getElementById('matchBtn');btn.disabled=true;btn.textContent='⏳ 比赛进行中…';
+  const opp=OPPS[Math.floor(Math.random()*OPPS.length)];
+  document.getElementById('matchInfo').textContent=`${G.clubName} vs ${opp}`;
+  document.getElementById('homeScore').textContent='0';document.getElementById('awayScore').textContent='0';
+  const feed=document.getElementById('eventFeed');feed.innerHTML='';
+  let home=0,away=0,min=0;
+  const myRating=G.squad.slice(0,11).reduce((s,p)=>s+p.rating,0)/11;
+  const oppRating=58+Math.random()*22;
+  const adv=myRating/oppRating;
+  addEvent(feed,`🏟 ${G.clubName} vs ${opp} 开球！`,'');
+  const duration=G.settings.fast?10:90;
+  const speed=G.settings.fast?120:100;
+  matchInt=setInterval(()=>{
+    min++;
+    document.getElementById('matchClock').textContent=String(Math.floor(min*(90/duration))).padStart(2,'0')+':00';
+    // ball anim
+    const b=document.getElementById('matchBall');
+    b.style.left=(8+Math.random()*84)+'%';b.style.top=(8+Math.random()*84)+'%';
+    const roll=Math.random();
+    if(roll<0.07*adv){
+      home++;document.getElementById('homeScore').textContent=home;
+      const sc=G.squad[Math.floor(Math.random()*Math.min(11,G.squad.length))];
+      addEvent(feed,`⚽ ${sc.name} 进球！第${Math.floor(min*(90/duration))}'`,'goal');
+      goalFlash();
+      if(G.settings.vibrate&&navigator.vibrate)navigator.vibrate(80);
+    }else if(roll<0.07*adv+0.055/adv){
+      away++;document.getElementById('awayScore').textContent=away;
+      addEvent(feed,`😰 ${opp} 进球 ${Math.floor(min*(90/duration))}'`,'miss');
+    }else if(roll<0.25){
+      const evts=[`🎯 ${G.squad[Math.floor(Math.random()*Math.min(11,G.squad.length))].name} 突破防线`,`🛡 精彩拦截！对方射门被扑出`,`📌 角球…一触即发`,`🔥 逼抢成功，反击来了！`,`💨 速度冲刺，门将扑出`];
+      addEvent(feed,evts[Math.floor(Math.random()*evts.length)],'');
+    }
+    if(min>=duration){
+      clearInterval(matchInt);G.matchRunning=false;btn.disabled=false;btn.textContent='▶ 下场比赛';
+      let pts=0,result='';
+      if(home>away){G.record.w++;pts=3;result='🏆 胜利！'}
+      else if(home===away){G.record.d++;pts=1;result='🤝 平局'}
+      else{G.record.l++;result='😔 失败'}
+      G.points+=pts;G.week=Math.min(20,G.week+1);
+      const matchReward=home*150+pts*400;
+      G.money+=matchReward;G.income.match+=matchReward;
+      G.stars+=pts;
+      const myTeam=G.leagueTable.find(t=>t.name==='我的俱乐部');
+      if(myTeam){myTeam.pts=G.points;myTeam.gd+=home-away;}
+      G.leagueTable.forEach(t=>{if(t.name!=='我的俱乐部'){t.pts+=Math.floor(Math.random()*3);t.gd+=Math.floor(Math.random()*3)-1;}});
+      sortLeague();
+      addEvent(feed,`🏁 全场结束！${result} 积分+${pts}，收入+${matchReward}万`,'goal');
+      showNotif(`${result} 💰+${matchReward}万`);
+      refreshMarket();updateHeader();updateHomeStats();renderLeagueHome();saveGame();
+    }
+  },speed);
+}
+function addEvent(feed,text,type){
+  const el=document.createElement('div');el.className=`event-item${type?' '+type:''}`;el.textContent=text;
+  feed.insertBefore(el,feed.firstChild);if(feed.children.length>20)feed.removeChild(feed.lastChild);
+}
+function goalFlash(){
+  const arena=document.getElementById('match-arena');
+  const el=document.createElement('div');el.className='goal-flash-text';el.textContent='⚽ GOAL!';
+  arena.appendChild(el);setTimeout(()=>el.remove(),1400);
+}
+
+// ═══════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════
+function showNotif(msg){
+  const n=document.createElement('div');n.className='notif';n.textContent=msg;
+  document.body.appendChild(n);setTimeout(()=>n.remove(),2600);
+}
+
+// ═══════════════════════════════════════════════
+// MINI GAME: JUGGLE  (fixed v2)
+// ═══════════════════════════════════════════════
+const BALL_R = 30;          // half of 60px visual ball
+const J_GRAVITY = 0.13;     // slow gravity — easy to track
+const J_MAXVY  = 6;         // cap fall speed
+const J_HIT_BOOST = -8.5;   // upward kick on tap
+let jActive=false,jCount=0,jVX=0,jVY=0,jX=0,jY=0,jRAF=null,jLastTap=0;
+
+function launchJuggle(){
+  document.getElementById('juggle-game').classList.add('show');
+  jActive=false;jCount=0;
+  document.getElementById('juggle-score').textContent='0';
+  document.getElementById('juggle-msg').textContent='点击「开始颠球」';
+  document.getElementById('juggle-best-val').textContent=G.gameStats.juggleBest;
+  // park ball in centre while idle
+  const cv=document.getElementById('juggle-canvas');
+  _jMoveBall(cv.offsetWidth/2||180, 200);
+}
+
+function juggleStart(){
+  jActive=true;jCount=0;
+  const cv=document.getElementById('juggle-canvas');
+  jX=cv.offsetWidth/2; jY=cv.offsetHeight*0.55;
+  jVX=(Math.random()-.5)*2.5;
+  jVY=-7;
+  document.getElementById('juggle-score').textContent='0';
+  document.getElementById('juggle-msg').textContent='点击足球不让它落地！';
+  if(jRAF)cancelAnimationFrame(jRAF);
+  jLoop();
+}
+
+function _jMoveBall(x,y){
+  const b=document.getElementById('juggle-ball');
+  b.style.left=x+'px';
+  b.style.top=y+'px';
+}
+
+function jLoop(){
+  if(!jActive)return;
+  const cv=document.getElementById('juggle-canvas');
+  const W=cv.offsetWidth, H=cv.offsetHeight;
+  jVY=Math.min(jVY+J_GRAVITY, J_MAXVY);
+  jX+=jVX; jY+=jVY;
+  // wall bounce
+  if(jX<BALL_R){jX=BALL_R;jVX=Math.abs(jVX);}
+  if(jX>W-BALL_R){jX=W-BALL_R;jVX=-Math.abs(jVX);}
+  _jMoveBall(jX,jY);
+  // fell below canvas
+  if(jY>H+BALL_R){jActive=false;jEnd();return;}
+  jRAF=requestAnimationFrame(jLoop);
+}
+
+/* ── Hit detection: listen on the CANVAS, compare pointer vs ball centre ── */
+function _jHandleHit(px,py){
+  if(!jActive)return;
+  const cv=document.getElementById('juggle-canvas');
+  const rect=cv.getBoundingClientRect();
+  const lx=px-rect.left, ly=py-rect.top;
+  const dx=lx-jX, dy=ly-jY;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  // generous hit zone: 1.6× ball radius
+  if(dist>BALL_R*1.6)return;
+  // debounce: ignore double-fires within 80ms
+  const now=Date.now();
+  if(now-jLastTap<80)return;
+  jLastTap=now;
+  jVY=J_HIT_BOOST - Math.random()*1.2;
+  jVX=jVX*0.6+(Math.random()-.5)*2.5;  // slight random spin
+  jCount++;
+  document.getElementById('juggle-score').textContent=jCount;
+  const msgs=['好球！','漂亮！','继续！','太棒了！','神了！','完美！'];
+  document.getElementById('juggle-msg').textContent=msgs[jCount%msgs.length];
+  if(G.settings.vibrate&&navigator.vibrate)navigator.vibrate(18);
+}
+
+(function(){
+  const cv=document.getElementById('juggle-canvas');
+  // touch
+  cv.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    _jHandleHit(t.clientX,t.clientY);
+  },{passive:false});
+  // mouse (desktop)
+  cv.addEventListener('mousedown',e=>{
+    _jHandleHit(e.clientX,e.clientY);
+  });
+})();
+
+function jEnd(){
+  const isNewBest=jCount>G.gameStats.juggleBest;
+  if(isNewBest)G.gameStats.juggleBest=jCount;
+  document.getElementById('juggle-best-val').textContent=G.gameStats.juggleBest;
+  const reward=jCount*12;
+  G.money+=reward;G.income.games+=reward;
+  let msg=isNewBest&&jCount>0?`🏆 新纪录！颠了${jCount}下，获得💰${reward}万`:`颠了${jCount}下，获得💰${reward}万`;
+  if(G.squad.length>0&&jCount>0){
+    const p=G.squad[Math.floor(Math.random()*G.squad.length)];
+    const boost=Math.floor(jCount/6);
+    if(boost>0){p.pace=Math.min(99,p.pace+boost);p.rating=Math.min(99,p.rating+(boost>2?1:0));msg+=`\n${p.name} 速度+${boost}`;}
+  }
+  document.getElementById('juggle-msg').textContent=msg;
+  updateHeader();
+  loadGameStats();   // ← refresh game stats panel immediately
+  saveGame();
+}
+
+function closeJuggle(){
+  jActive=false;
+  if(jRAF)cancelAnimationFrame(jRAF);
+  document.getElementById('juggle-game').classList.remove('show');
+  loadGameStats();
+}
+
+// ═══════════════════════════════════════════════
+// MINI GAME: 2048
+// ═══════════════════════════════════════════════
+let grid2048=Array(16).fill(0),sc2048=0;
+const PL={2:'青训',4:'预备',8:'新秀',16:'主力',32:'骨干',64:'球星',128:'国脚',256:'亚洲',512:'世界',1024:'传奇',2048:'GOAT'};
+function launch2048(){document.getElementById('game2048').classList.add('show');reset2048();}
+function reset2048(){grid2048=Array(16).fill(0);sc2048=0;add2048();add2048();render2048();}
+function add2048(){
+  const e=grid2048.reduce((a,v,i)=>v===0?[...a,i]:a,[]);
+  if(!e.length)return;grid2048[e[Math.floor(Math.random()*e.length)]]=Math.random()<.8?2:4;
+}
+function render2048(){
+  const g=document.getElementById('grid2048');g.innerHTML='';
+  grid2048.forEach(v=>{
+    const c=document.createElement('div');c.className=`cell2048${v?' c'+v:''}`;
+    c.textContent=v?PL[v]||v:'';g.appendChild(c);
+  });
+  document.getElementById('score2048-val').textContent=sc2048;
+  document.getElementById('score2048-best').textContent='历史最高: '+G.gameStats.best2048;
+}
+function move2048(dir){
+  let moved=false;const N=4;let b=[...grid2048];
+  function getIdx(r,c){return r*N+c;}
+  function compress(arr){
+    let f=arr.filter(x=>x!==0);
+    for(let i=0;i<f.length-1;i++){if(f[i]===f[i+1]){f[i]*=2;sc2048+=f[i];f.splice(i+1,1);i++;}}
+    while(f.length<N)f.push(0);return f;
+  }
+  for(let r=0;r<N;r++){
+    let row=[];
+    for(let c=0;c<N;c++){
+      if(dir===0)row.push(b[getIdx(r,c)]);
+      else if(dir===1)row.push(b[getIdx(r,N-1-c)]);
+      else if(dir===2)row.push(b[getIdx(c,r)]);
+      else row.push(b[getIdx(N-1-c,r)]);
+    }
+    const comp=compress(row);
+    for(let c=0;c<N;c++){
+      let idx=dir===0?getIdx(r,c):dir===1?getIdx(r,N-1-c):dir===2?getIdx(c,r):getIdx(N-1-c,r);
+      if(b[idx]!==comp[c])moved=true;b[idx]=comp[c];
+    }
+  }
+  if(moved){
+    grid2048=b;add2048();
+    if(sc2048>G.gameStats.best2048){G.gameStats.best2048=sc2048;}
+    const bonus=Math.floor(sc2048/50)*8;if(bonus>0){G.money+=bonus;G.income.games+=bonus;updateHeader();}
+    if(grid2048.includes(2048)){
+      showNotif('🌟 GOAT降临！球队获得传奇球员！');
+      G.money+=8000;G.income.games+=8000;
+      if(G.squad.length<22)G.squad.push(createPlayer('ST',99));
+      updateHeader();
+    }
+    render2048();loadGameStats();saveGame();
+  }
+}
+let t2048={x:0,y:0};
+document.getElementById('grid2048').addEventListener('touchstart',e=>{t2048.x=e.touches[0].clientX;t2048.y=e.touches[0].clientY;},{passive:true});
+document.getElementById('grid2048').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-t2048.x,dy=e.changedTouches[0].clientY-t2048.y;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+  move2048(Math.abs(dx)>Math.abs(dy)?(dx<0?0:1):(dy<0?2:3));
+},{passive:true});
+function close2048(){document.getElementById('game2048').classList.remove('show');loadGameStats();}
+
+// ═══════════════════════════════════════════════
+// MINI GAME: PASS RHYTHM
+// ═══════════════════════════════════════════════
+let passActive=false,passScore=0,passLives=3,passCombo=0,passBarPos=0,passDir=1,passSpeed=1.1,passRAF2=null,passTarget={s:.35,e:.65};
+function launchPass(){
+  document.getElementById('pass-game').classList.add('show');
+  passActive=false;passScore=0;passLives=3;passCombo=0;
+  document.getElementById('pass-score-val').textContent='0';
+  document.getElementById('pass-combo').textContent='按球开始！';
+  document.getElementById('pass-lives').textContent='❤️❤️❤️';
+  document.getElementById('pass-best').textContent=G.gameStats.passBest;
+  document.getElementById('pass-bar').style.width='0%';
+}
+function startPassGame(){
+  passActive=true;passScore=0;passLives=3;passCombo=0;passBarPos=0;passDir=1;passSpeed=1.1;
+  setPassTarget();if(passRAF2)cancelAnimationFrame(passRAF2);passLoop();
+}
+function setPassTarget(){
+  const w=.22+Math.random()*.18,s=.04+Math.random()*(.92-w);
+  passTarget={s,e:s+w};
+  const wrap=document.getElementById('pass-bar-wrap'),W=wrap.offsetWidth;
+  const t=document.getElementById('pass-target');
+  t.style.left=(passTarget.s*100)+'%';t.style.width=((passTarget.e-passTarget.s)*100)+'%';
+}
+function passLoop(){
+  if(!passActive)return;
+  passBarPos+=passSpeed*passDir*.7;
+  if(passBarPos>=100){passBarPos=100;passDir=-1;}
+  if(passBarPos<=0){passBarPos=0;passDir=1;}
+  document.getElementById('pass-bar').style.width=passBarPos+'%';
+  passRAF2=requestAnimationFrame(passLoop);
+}
+function passTap(){
+  if(!passActive){startPassGame();return;}
+  const pos=passBarPos/100,hit=pos>=passTarget.s&&pos<=passTarget.e;
+  if(hit){
+    passCombo++;const center=Math.abs(pos-(passTarget.s+passTarget.e)/2)<.05;
+    const pts=center?25+passCombo*5:10+passCombo*3;passScore+=pts;
+    document.getElementById('pass-score-val').textContent=passScore;
+    document.getElementById('pass-combo').textContent=['👟 传出！','💫 完美！','🔥 连续×'+passCombo,'⚡ 天才传球！'][Math.min(passCombo-1,3)];
+    passSpeed=Math.min(3.2,1.1+passScore/180);setPassTarget();
+    if(passScore>G.gameStats.passBest){G.gameStats.passBest=passScore;document.getElementById('pass-best').textContent=passScore;loadGameStats();}
+    if(G.settings.vibrate&&navigator.vibrate)navigator.vibrate(15);
+  }else{
+    passCombo=0;passLives--;
+    document.getElementById('pass-combo').textContent='😬 传丢了！';
+    const h=['','❤️','❤️❤️','❤️❤️❤️'];
+    document.getElementById('pass-lives').textContent=h[Math.max(0,passLives)];
+    if(passLives<=0){
+      passActive=false;if(passRAF2)cancelAnimationFrame(passRAF2);
+      const reward=Math.floor(passScore*2);G.money+=reward;G.income.games+=reward;
+      if(G.squad.length>0){const p=G.squad[Math.floor(Math.random()*G.squad.length)];const b=Math.floor(passScore/40);if(b>0)p.pass=Math.min(99,p.pass+b);}
+      document.getElementById('pass-combo').textContent=`结束！得${passScore}分，获得💰${reward}万`;
+      updateHeader();loadGameStats();saveGame();return;
+    }
+    setPassTarget();
+  }
+}
+function closePass(){passActive=false;if(passRAF2)cancelAnimationFrame(passRAF2);document.getElementById('pass-game').classList.remove('show');loadGameStats();}
+
+// ═══════════════════════════════════════════════
+// MINI GAME: PENALTY
+// ═══════════════════════════════════════════════
+let penKicks=5,penScore=0,penDone=false,penResults=[];
+function launchPenalty(){
+  document.getElementById('penalty-game').classList.add('show');
+  penKicks=5;penScore=0;penDone=false;penResults=[];
+  document.getElementById('penalty-status').textContent='选择射门方向';
+  document.getElementById('penalty-kicks').textContent='剩余：5次';
+  document.getElementById('penalty-dots').textContent='⚪⚪⚪⚪⚪';
+}
+function penaltyKick(z){
+  if(penDone||penKicks<=0)return;
+  const gkPref=Math.floor(Math.random()*6);
+  const saved=(z===gkPref&&Math.random()<.55)||(z!==gkPref&&Math.random()<.15);
+  penKicks--;
+  const zones=document.querySelectorAll('.goal-zone');
+  if(!saved){penScore++;penResults.push('✅');zones[z].classList.add('hit-flash');document.getElementById('penalty-status').textContent='⚽ 进球！';}
+  else{penResults.push('❌');zones[z].classList.add('miss-flash');zones[gkPref].classList.add('miss-flash');document.getElementById('penalty-status').textContent='🧤 被扑出！';}
+  setTimeout(()=>zones.forEach(z=>z.classList.remove('hit-flash','miss-flash')),600);
+  document.getElementById('penalty-kicks').textContent=`剩余：${penKicks}次`;
+  document.getElementById('penalty-dots').textContent=penResults.join('')+'⚪'.repeat(penKicks);
+  if(penKicks<=0){
+    penDone=true;const win=penScore>=3;const reward=penScore*320;
+    G.money+=reward;G.income.games+=reward;
+    if(win){G.stars+=5;G.gameStats.penaltyWins++;G.points+=1;sortLeague();}
+    document.getElementById('penalty-status').textContent=`${win?'🏆 胜利':'😔 失败'} ${penScore}/5 💰+${reward}万`;
+    updateHeader();loadGameStats();saveGame();
+  }
+}
+function closePenalty(){document.getElementById('penalty-game').classList.remove('show');loadGameStats();}
+
+// ═══════════════════════════════════════════════
+// GAME STATS DISPLAY
+// ═══════════════════════════════════════════════
+function loadGameStats(){
+  const el=document.getElementById('gameStats');if(!el)return;
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--dark2);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--green3)">${G.gameStats.juggleBest}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.3px">颠球最高</div>
+      </div>
+      <div style="background:var(--dark2);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--gold2)">${G.gameStats.best2048}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.3px">2048最高</div>
+      </div>
+      <div style="background:var(--dark2);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--blue2)">${G.gameStats.passBest}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.3px">传球最高</div>
+      </div>
+      <div style="background:var(--dark2);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--red2)">${G.gameStats.penaltyWins}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.3px">点球胜场</div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// KEYBOARD (desktop 2048)
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('game2048').classList.contains('show'))return;
+  const m={ArrowLeft:0,ArrowRight:1,ArrowUp:2,ArrowDown:3};
+  if(m[e.key]!==undefined){e.preventDefault();move2048(m[e.key]);}
+});
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+bootGame();
+</script>
+</body>
+</html>

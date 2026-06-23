@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KICKOFF · 异步足球对战</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+SC:wght@300;400;700;900&display=swap');
+
+:root {
+  --sky-top: #0a1628;
+  --sky-mid: #0e2044;
+  --sky-bot: #1a3a6e;
+  --panel-bg: rgba(10,22,48,0.82);
+  --panel-solid: #0d1e3a;
+  --border: rgba(120,160,255,0.22);
+  --border-bright: rgba(120,160,255,0.55);
+  --accent-blue: #5ba4ff;
+  --accent-cyan: #38d9f5;
+  --accent-gold: #f0c040;
+  --accent-red: #ff5a5a;
+  --accent-green: #40e080;
+  --text: #e8f0ff;
+  --text-muted: #7090c0;
+  --radius: 10px;
+  --glow-blue: 0 0 20px rgba(91,164,255,.35);
+  --glow-gold: 0 0 20px rgba(240,192,64,.4);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Noto Sans SC',sans-serif;
+  background: linear-gradient(175deg, var(--sky-top) 0%, var(--sky-mid) 45%, var(--sky-bot) 100%);
+  min-height:100vh;
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+/* ═══ ANIMATED STADIUM BG ═══════════════════════════════ */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 110%, rgba(30,80,200,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 15% 50%, rgba(91,164,255,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 85% 50%, rgba(91,164,255,.06) 0%, transparent 60%);
+}
+
+/* stadium light rays */
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    conic-gradient(from 240deg at 20% -10%, transparent 0deg, rgba(91,164,255,.04) 8deg, transparent 16deg),
+    conic-gradient(from 300deg at 80% -10%, transparent 0deg, rgba(91,164,255,.04) 8deg, transparent 16deg);
+}
+
+.screen{display:none;width:100%;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:flex;}
+
+/* ═══════════════════════════════════════════════════════
+   START SCREEN
+═══════════════════════════════════════════════════════ */
+#screen-start{
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:28px;padding:40px 16px;
+}
+
+.logo{text-align:center;user-select:none;}
+.logo-badge{
+  display:inline-block;
+  width:90px;height:90px;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 35%, #3a7fff, #0a1e60);
+  border:3px solid rgba(91,164,255,.5);
+  box-shadow:var(--glow-blue), inset 0 1px 0 rgba(255,255,255,.15);
+  font-size:42px;line-height:90px;margin-bottom:16px;
+  animation:badgePulse 3s ease-in-out infinite;
+}
+@keyframes badgePulse{
+  0%,100%{box-shadow:var(--glow-blue),inset 0 1px 0 rgba(255,255,255,.15);}
+  50%{box-shadow:0 0 40px rgba(91,164,255,.6),inset 0 1px 0 rgba(255,255,255,.15);}
+}
+.logo-title{
+  font-family:'Orbitron',sans-serif;font-size:56px;font-weight:900;
+  letter-spacing:6px;line-height:1;
+  background:linear-gradient(135deg,#ffffff 0%,#7ec8ff 40%,#38d9f5 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.logo-sub{
+  font-size:11px;letter-spacing:10px;text-transform:uppercase;
+  color:var(--text-muted);margin-top:8px;
+}
+
+.start-card{
+  background:var(--panel-bg);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:32px 40px;
+  width:420px;max-width:95vw;
+  display:flex;flex-direction:column;gap:22px;
+  backdrop-filter:blur(20px);
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+
+.sec-label{
+  font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:8px;
+}
+
+.mode-row,.diff-row{display:flex;gap:10px;}
+.opt-btn{
+  flex:1;padding:13px 8px;border-radius:var(--radius);
+  border:1.5px solid var(--border);
+  background:rgba(255,255,255,.04);
+  color:var(--text-muted);
+  font-family:'Noto Sans SC',sans-serif;font-size:13px;
+  cursor:pointer;transition:all .2s;text-align:center;
+}
+.opt-btn:hover{border-color:var(--accent-blue);color:var(--text);}
+.opt-btn.sel-blue{border-color:var(--accent-blue);background:rgba(91,164,255,.12);color:var(--accent-blue);}
+.opt-btn.sel-gold{border-color:var(--accent-gold);background:rgba(240,192,64,.1);color:var(--accent-gold);}
+
+#diff-section{transition:opacity .3s;}
+#diff-section.hidden{opacity:.2;pointer-events:none;}
+
+.rules-list{
+  font-size:11.5px;color:var(--text-muted);line-height:2;
+  border-left:2px solid rgba(91,164,255,.2);padding-left:12px;
+}
+
+.cta-btn{
+  padding:16px;border-radius:var(--radius);border:none;
+  background:linear-gradient(135deg,#1a5fd6,#3a8fff);
+  color:#fff;font-family:'Orbitron',sans-serif;
+  font-size:15px;font-weight:700;letter-spacing:3px;
+  cursor:pointer;transition:all .22s;
+  box-shadow:0 4px 20px rgba(58,143,255,.35);
+}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(58,143,255,.5);}
+
+/* ═══════════════════════════════════════════════════════
+   GAME SCREEN
+═══════════════════════════════════════════════════════ */
+#screen-game{
+  flex-direction:column;align-items:center;
+  padding:10px 14px 16px;gap:10px;
+}
+
+/* ── TOP BAR ── */
+.top-bar{
+  width:100%;max-width:990px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.scoreboard{
+  display:flex;align-items:center;gap:10px;
+  background:var(--panel-bg);
+  border:1px solid var(--border);border-radius:12px;
+  padding:8px 18px;backdrop-filter:blur(12px);
+  box-shadow:var(--glow-blue);
+}
+.t-label{font-size:12px;color:var(--text-muted);white-space:nowrap;}
+.s-num{
+  font-family:'Orbitron',sans-serif;font-size:34px;font-weight:900;line-height:1;
+}
+.s-blue{color:var(--accent-blue);}
+.s-red{color:var(--accent-red);}
+.s-sep{font-size:22px;color:rgba(255,255,255,.25);margin:0 4px;}
+
+.timebox{
+  text-align:center;
+  background:var(--panel-bg);
+  border:1px solid var(--border);border-radius:12px;
+  padding:8px 22px;backdrop-filter:blur(12px);
+  min-width:120px;
+}
+.time-num{
+  font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;
+  color:var(--accent-gold);
+  text-shadow:var(--glow-gold);
+}
+.time-sub{font-size:10px;color:var(--text-muted);margin-top:2px;letter-spacing:2px;}
+
+.status-badge{
+  background:var(--panel-bg);
+  border:1px solid var(--border);border-radius:12px;
+  padding:8px 16px;backdrop-filter:blur(12px);
+  font-size:12px;color:var(--text-muted);white-space:nowrap;
+}
+.status-badge b{color:var(--text);}
+
+/* ── CANVAS ── */
+.canvas-wrap{
+  position:relative;
+  border:2px solid rgba(91,164,255,.3);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 0 50px rgba(30,80,200,.3), 0 0 0 1px rgba(91,164,255,.1);
+}
+#gameCanvas,#arrowCanvas{display:block;}
+#arrowCanvas{position:absolute;top:0;left:0;pointer-events:none;}
+
+/* ── BOTTOM ── */
+.bottom-bar{
+  width:100%;max-width:990px;
+  display:flex;gap:10px;align-items:stretch;
+}
+.info-box{
+  flex:1;
+  background:var(--panel-bg);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:11px 16px;font-size:13px;color:var(--text-muted);
+  display:flex;align-items:center;backdrop-filter:blur(12px);
+  min-height:50px;
+}
+.info-box b{color:var(--text);}
+.btns{display:flex;gap:9px;align-items:center;}
+.g-btn{
+  padding:11px 20px;border-radius:var(--radius);
+  border:1.5px solid var(--border);
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.g-btn:disabled{opacity:.25;cursor:not-allowed;}
+.g-btn.primary{background:linear-gradient(135deg,#1a5fd6,#3a8fff);border-color:transparent;color:#fff;}
+.g-btn.primary:hover:not(:disabled){box-shadow:var(--glow-blue);transform:translateY(-1px);}
+.g-btn.danger{border-color:var(--accent-red);color:var(--accent-red);}
+.g-btn.danger:hover:not(:disabled){background:rgba(255,90,90,.1);}
+.g-btn.go{background:linear-gradient(135deg,#14693a,#28c06a);border-color:transparent;color:#fff;}
+.g-btn.go:hover:not(:disabled){box-shadow:0 0 20px rgba(40,192,106,.4);transform:translateY(-1px);}
+
+/* ═══════════════════════════════════════════════════════
+   PENALTY SCREEN
+═══════════════════════════════════════════════════════ */
+#screen-penalty{
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:30px 16px;
+}
+.penalty-header{text-align:center;}
+.penalty-header h2{
+  font-family:'Orbitron',sans-serif;font-size:30px;font-weight:900;
+  color:var(--accent-gold);text-shadow:var(--glow-gold);
+  margin-bottom:6px;
+}
+.penalty-header p{color:var(--text-muted);font-size:13px;}
+
+.penalty-score-row{
+  display:flex;align-items:center;gap:20px;
+  background:var(--panel-bg);border:1px solid var(--border);
+  border-radius:14px;padding:14px 32px;
+  backdrop-filter:blur(12px);
+}
+.pen-dots{display:flex;gap:8px;}
+.pen-dot{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.05);
+  transition:all .3s;
+}
+.pen-dot.scored-blue{background:var(--accent-blue);border-color:var(--accent-blue);box-shadow:0 0 10px var(--accent-blue);}
+.pen-dot.scored-red{background:var(--accent-red);border-color:var(--accent-red);box-shadow:0 0 10px var(--accent-red);}
+.pen-dot.missed{background:rgba(255,90,90,.3);border-color:rgba(255,90,90,.4);}
+.pen-dot.active-blue{border-color:var(--accent-blue);animation:dotPulse .8s ease-in-out infinite;}
+.pen-dot.active-red{border-color:var(--accent-red);animation:dotPulse .8s ease-in-out infinite;}
+@keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.pen-vs{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:rgba(255,255,255,.2);}
+
+.penalty-canvas-wrap{
+  position:relative;
+  border:2px solid rgba(91,164,255,.3);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 0 50px rgba(30,80,200,.3);
+}
+#penCanvas{display:block;}
+
+.penalty-info{
+  background:var(--panel-bg);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 20px;
+  font-size:13px;color:var(--text-muted);
+  text-align:center;backdrop-filter:blur(12px);
+  max-width:500px;width:100%;
+}
+.penalty-info b{color:var(--text);}
+
+/* ═══════════════════════════════════════════════════════
+   VICTORY SCREEN
+═══════════════════════════════════════════════════════ */
+#screen-victory{
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:24px;padding:40px 16px;
+}
+
+.trophy-wrap{position:relative;text-align:center;margin-bottom:8px;}
+.trophy-icon{
+  font-size:100px;line-height:1;
+  animation:trophyFloat 2.5s ease-in-out infinite;
+  display:inline-block;
+  filter:drop-shadow(0 0 30px rgba(240,192,64,.7));
+}
+@keyframes trophyFloat{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-12px);}
+}
+.confetti-ring{
+  position:absolute;inset:-20px;border-radius:50%;
+  border:2px solid transparent;
+  background:conic-gradient(var(--accent-gold),var(--accent-blue),var(--accent-cyan),var(--accent-gold)) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:destination-out;mask-composite:exclude;
+  animation:spin 4s linear infinite;
+  width:140px;height:140px;left:50%;top:50%;margin-left:-70px;margin-top:-70px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.victory-title{
+  font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;
+  letter-spacing:4px;text-align:center;
+  background:linear-gradient(135deg,#fff 0%,var(--accent-gold) 50%,#f0a000 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.victory-title.lose{
+  background:linear-gradient(135deg,#aac0ff,var(--accent-blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.victory-title.draw{
+  background:linear-gradient(135deg,#c0d8ff,#fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.victory-card{
+  background:var(--panel-bg);
+  border:1px solid var(--border-bright);
+  border-radius:20px;padding:32px 48px;
+  text-align:center;
+  backdrop-filter:blur(20px);
+  box-shadow:0 24px 60px rgba(0,0,0,.5),var(--glow-blue);
+  max-width:460px;width:95vw;
+}
+
+.final-score{
+  font-family:'Orbitron',sans-serif;font-size:64px;font-weight:900;
+  line-height:1;margin:12px 0;
+}
+.final-score .s-blue{color:var(--accent-blue);}
+.final-score .s-red{color:var(--accent-red);}
+.final-score .s-sep{color:rgba(255,255,255,.2);font-size:40px;margin:0 12px;}
+
+.win-team{
+  font-size:16px;color:var(--text-muted);margin-bottom:20px;
+}
+.win-team b{color:var(--text);}
+
+.outcome-note{
+  font-size:12px;color:var(--text-muted);
+  background:rgba(255,255,255,.04);
+  border-radius:6px;padding:8px 16px;
+  margin-bottom:20px;letter-spacing:1px;
+}
+
+.victory-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.v-btn{
+  padding:14px 28px;border-radius:var(--radius);
+  border:1.5px solid var(--border);
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  font-family:'Noto Sans SC',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .22s;
+}
+.v-btn:hover{border-color:var(--accent-blue);background:rgba(91,164,255,.1);}
+.v-btn.primary{
+  background:linear-gradient(135deg,#1a5fd6,#3a8fff);
+  border-color:transparent;color:#fff;
+  box-shadow:var(--glow-blue);
+}
+.v-btn.primary:hover{box-shadow:0 8px 32px rgba(58,143,255,.5);transform:translateY(-2px);}
+
+/* ═══════════════════════════════════════════════════════
+   HALF-TIME MODAL
+═══════════════════════════════════════════════════════ */
+.overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
+  z-index:200;align-items:center;justify-content:center;
+}
+.overlay.active{display:flex;}
+.modal{
+  background:var(--panel-solid);
+  border:1px solid var(--border-bright);
+  border-radius:18px;padding:36px 44px;
+  max-width:420px;width:92vw;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  animation:slideIn .25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes slideIn{
+  from{transform:scale(.88) translateY(20px);opacity:0;}
+  to{transform:scale(1) translateY(0);opacity:1;}
+}
+.modal h2{font-family:'Orbitron',sans-serif;font-size:24px;color:var(--accent-gold);margin-bottom:6px;}
+.modal-score{font-family:'Orbitron',sans-serif;font-size:52px;font-weight:900;margin:12px 0;}
+.modal p{color:var(--text-muted);font-size:13px;margin-bottom:22px;}
+.modal-btn{
+  padding:13px 36px;border-radius:var(--radius);border:none;
+  background:linear-gradient(135deg,#1a5fd6,#3a8fff);
+  color:#fff;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;
+}
+.modal-btn:hover{box-shadow:var(--glow-blue);transform:translateY(-1px);}
+
+/* ═══ TOAST ══════════════════════════════════════════ */
+.toast{
+  position:fixed;top:16px;left:50%;
+  transform:translateX(-50%) translateY(-10px);
+  background:var(--panel-solid);
+  border:1px solid var(--border);border-radius:8px;
+  padding:10px 24px;font-size:14px;font-weight:700;
+  opacity:0;pointer-events:none;transition:all .3s;z-index:300;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.goal{border-color:var(--accent-gold);color:var(--accent-gold);box-shadow:var(--glow-gold);}
+.toast.info{border-color:var(--accent-cyan);color:var(--accent-cyan);}
+
+/* progress bar */
+.time-bar-wrap{
+  width:100%;max-width:990px;
+  height:4px;background:rgba(255,255,255,.06);
+  border-radius:2px;overflow:hidden;
+}
+.time-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent-blue),var(--accent-cyan));transition:width .3s;}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     START SCREEN
+════════════════════════════════════════ -->
+<div id="screen-start" class="screen active">
+  <div class="logo">
+    <div class="logo-badge">⚽</div>
+    <div class="logo-title">KICKOFF</div>
+    <div class="logo-sub">异步足球对战 · Football Tactics</div>
+  </div>
+
+  <div class="start-card">
+    <div>
+      <div class="sec-label">游戏模式</div>
+      <div class="mode-row">
+        <button class="opt-btn sel-blue" data-mode="pve">🤖 玩家 vs AI</button>
+        <button class="opt-btn" data-mode="pvp">👥 玩家 vs 玩家</button>
+      </div>
+    </div>
+
+    <div id="diff-section">
+      <div class="sec-label">AI 难度</div>
+      <div class="diff-row">
+        <button class="opt-btn sel-gold" data-diff="easy">简单</button>
+        <button class="opt-btn" data-diff="medium">中等</button>
+        <button class="opt-btn" data-diff="hard">困难</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">规则说明</div>
+      <div class="rules-list">
+        • 上下半场各 45 轮（共 90 分钟）<br>
+        • 平局后加时赛 10 轮<br>
+        • 加时仍平则进入点球大战<br>
+        • 点击球员 → 拖拽设定移动与力度<br>
+        • 持球球员可额外拖拽设定射球
+      </div>
+    </div>
+
+    <button class="cta-btn" id="btn-start">⚡ 开始比赛</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     GAME SCREEN
+════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="top-bar">
+    <div class="scoreboard">
+      <span class="t-label" id="lbl-home">玩家</span>
+      <span class="s-num s-blue" id="sc-home">0</span>
+      <span class="s-sep">–</span>
+      <span class="s-num s-red" id="sc-away">0</span>
+      <span class="t-label" id="lbl-away">AI</span>
+    </div>
+
+    <div>
+      <div class="timebox">
+        <div class="time-num" id="time-disp">00:00</div>
+        <div class="time-sub" id="half-disp">上半场</div>
+      </div>
+    </div>
+
+    <div class="status-badge">状态：<b id="phase-txt">规划阶段</b></div>
+  </div>
+
+  <div class="time-bar-wrap"><div class="time-bar" id="time-bar"></div></div>
+
+  <div class="canvas-wrap">
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="arrowCanvas"></canvas>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="info-box" id="info-box">选择你的球员，<b>拖拽</b>设定方向和力度。</div>
+    <div class="btns">
+      <button class="g-btn danger" id="btn-reset">重置规划</button>
+      <button class="g-btn primary" id="btn-confirm">确认规划 →</button>
+      <button class="g-btn go" id="btn-exec" style="display:none">▶ 执行回合</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PENALTY SCREEN
+════════════════════════════════════════ -->
+<div id="screen-penalty" class="screen">
+  <div class="penalty-header">
+    <h2>⚡ 点球大战</h2>
+    <p>每队5轮，点击球门区域确定射球位置</p>
+  </div>
+
+  <div class="penalty-score-row">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-align:center;" id="pen-lbl-home">蓝队</div>
+      <div class="pen-dots" id="pen-dots-home"></div>
+    </div>
+    <div class="pen-vs">VS</div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-align:center;" id="pen-lbl-away">红队</div>
+      <div class="pen-dots" id="pen-dots-away"></div>
+    </div>
+  </div>
+
+  <div class="penalty-canvas-wrap">
+    <canvas id="penCanvas"></canvas>
+  </div>
+
+  <div class="penalty-info" id="pen-info"><b>等待开始…</b></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     VICTORY SCREEN
+════════════════════════════════════════ -->
+<div id="screen-victory" class="screen">
+  <div class="trophy-wrap">
+    <div class="trophy-icon" id="trophy-icon">🏆</div>
+    <div class="confetti-ring"></div>
+  </div>
+
+  <div class="victory-title" id="vic-title">胜利！</div>
+
+  <div class="victory-card">
+    <div class="final-score" id="vic-score">
+      <span class="s-blue">0</span>
+      <span class="s-sep">–</span>
+      <span class="s-red">0</span>
+    </div>
+    <div class="win-team" id="vic-team"></div>
+    <div class="outcome-note" id="vic-note"></div>
+    <div class="victory-btns">
+      <button class="v-btn primary" id="vic-again">🔄 再来一局</button>
+      <button class="v-btn" id="vic-menu">🏠 主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     HALFTIME MODAL
+════════════════════════════════════════ -->
+<div class="overlay" id="ht-overlay">
+  <div class="modal">
+    <h2 id="ht-title">上半场结束</h2>
+    <div class="modal-score" id="ht-score"></div>
+    <p id="ht-msg"></p>
+    <button class="modal-btn" id="ht-btn">继续</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════
+     GAME LOGIC
+════════════════════════════════════════ -->
+<script>
+// ─── CONSTANTS ─────────────────────────────────────────────────────────────
+const FW=840, FH=540;
+const GOAL_W=12, GOAL_H=112;
+const PR=18, BR=9;       // player radius, ball radius
+const MAX_SPD=9;
+const FRICTION=0.81;
+const BFRICTION=0.87;
+const SIM_STEPS=80;
+const CARRY_D=26;
+const TACKLE_D=36;
+const HALF_ROUNDS=45;    // 45 per half
+const ET_ROUNDS=10;      // extra time
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let MODE='pve', DIFF='easy';
+let round=1, scHome=0, scAway=0;
+let planTeam=0;
+let phase='planning'; // planning | awaiting | executing
+let ballOwner=null;
+let homePlanned=false, awayPlanned=false;
+let gameStage='normal'; // normal | et | penalty
+let goalEvent=null;
+
+let ball={x:FW/2,y:FH/2,vx:0,vy:0};
+let players=[];
+let drag=null;
+let selectedP=null;
+let simStep=0, simIntvl=null;
+let shootDone=[[],[],[]]; // per team per player
+
+// penalty state
+let penRound=0, penTeam=0, penScHome=0, penScAway=0;
+let penResults=[[],[]]; // true/false per kick
+let penPhase='aim'; // aim | animating
+let penBall=null, penAnim=null;
+
+// ─── CANVAS ────────────────────────────────────────────────────────────────
+const cvs=document.getElementById('gameCanvas');
+const ctx=cvs.getContext('2d');
+const acvs=document.getElementById('arrowCanvas');
+const actx=acvs.getContext('2d');
+cvs.width=acvs.width=FW; cvs.height=acvs.height=FH;
+
+const penCvs=document.getElementById('penCanvas');
+const penCtx=penCvs.getContext('2d');
+penCvs.width=600; penCvs.height=300;
+
+// ─── DOM ───────────────────────────────────────────────────────────────────
+const elScH=document.getElementById('sc-home');
+const elScA=document.getElementById('sc-away');
+const elTime=document.getElementById('time-disp');
+const elHalf=document.getElementById('half-disp');
+const elPhase=document.getElementById('phase-txt');
+const elInfo=document.getElementById('info-box');
+const elBar=document.getElementById('time-bar');
+const btnReset=document.getElementById('btn-reset');
+const btnConfirm=document.getElementById('btn-confirm');
+const btnExec=document.getElementById('btn-exec');
+const toastEl=document.getElementById('toast');
+const htOverlay=document.getElementById('ht-overlay');
+let toastTmr=null;
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(x1,y1,x2,y2)=>Math.hypot(x2-x1,y2-y1);
+
+function showToast(msg,cls='info'){
+  toastEl.textContent=msg;
+  toastEl.className='toast show '+(cls||'');
+  clearTimeout(toastTmr);
+  toastTmr=setTimeout(()=>toastEl.className='toast',2400);
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ─── TIME DISPLAY ──────────────────────────────────────────────────────────
+function roundToMinute(r){
+  // round 1-45 → 0'–45', round 46-90 → 46'–90', 91-100 → ET
+  if(r<=HALF_ROUNDS) return r;
+  if(r<=HALF_ROUNDS*2) return r;
+  return 90+(r-HALF_ROUNDS*2);
+}
+function updateTimeDisplay(){
+  const min=roundToMinute(round);
+  const mm=String(min).padStart(2,'0');
+  elTime.textContent=mm+"'";
+  const isET=gameStage==='et';
+  if(round<=HALF_ROUNDS) elHalf.textContent='上半场';
+  else if(round<=HALF_ROUNDS*2) elHalf.textContent='下半场';
+  else elHalf.textContent='加时赛';
+
+  // progress bar
+  let pct;
+  if(gameStage==='et'){
+    pct=90+((round-HALF_ROUNDS*2)/ET_ROUNDS)*10;
+  } else {
+    pct=Math.min((round/(HALF_ROUNDS*2))*100,100);
+  }
+  elBar.style.width=pct+'%';
+}
+
+// ─── PLAYER INIT ───────────────────────────────────────────────────────────
+function mkPlayer(x,y){return{x,y,vx:0,vy:0,hasBall:false,plan:null};}
+function initPlayers(){
+  const hp=[[120,FH/2],[210,FH/2-120],[210,FH/2+120],[310,FH/2-60],[310,FH/2+60]];
+  const ap=hp.map(([x,y])=>[FW-x,y]);
+  players=[hp.map(([x,y])=>mkPlayer(x,y)), ap.map(([x,y])=>mkPlayer(x,y))];
+  ball={x:FW/2,y:FH/2,vx:0,vy:0};
+  ballOwner=null; goalEvent=null;
+}
+function softResetPositions(){
+  // slight nudge back toward starting zone after a goal but keep general positions
+  ball={x:FW/2,y:FH/2,vx:0,vy:0};
+  players.forEach(t=>t.forEach(p=>{p.hasBall=false;p.vx=0;p.vy=0;}));
+  ballOwner=null;
+}
+
+// ─── DRAW FIELD ────────────────────────────────────────────────────────────
+function drawField(){
+  ctx.fillStyle='#2e6b28';
+  ctx.fillRect(0,0,FW,FH);
+  // stripe pattern
+  for(let x=0;x<FW;x+=72){
+    ctx.fillStyle='rgba(0,0,0,.065)';
+    ctx.fillRect(x,0,36,FH);
+  }
+  ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2;
+  ctx.strokeRect(4,4,FW-8,FH-8);
+  // halfway
+  ctx.beginPath();ctx.moveTo(FW/2,4);ctx.lineTo(FW/2,FH-4);ctx.stroke();
+  // centre circle
+  ctx.beginPath();ctx.arc(FW/2,FH/2,62,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(FW/2,FH/2,3,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.fill();
+  // penalty areas
+  const paw=124,pah=244;
+  ctx.strokeRect(4,(FH-pah)/2,paw,pah);
+  ctx.strokeRect(FW-4-paw,(FH-pah)/2,paw,pah);
+  // goal areas
+  const gaw=52,gah=144;
+  ctx.strokeRect(4,(FH-gah)/2,gaw,gah);
+  ctx.strokeRect(FW-4-gaw,(FH-gah)/2,gaw,gah);
+  // goals
+  const gy=(FH-GOAL_H)/2;
+  ctx.fillStyle='rgba(255,255,255,.1)';
+  ctx.fillRect(0,gy,GOAL_W,GOAL_H);
+  ctx.fillRect(FW-GOAL_W,gy,GOAL_W,GOAL_H);
+  ctx.strokeStyle='rgba(255,255,255,.85)';
+  ctx.strokeRect(0,gy,GOAL_W,GOAL_H);
+  ctx.strokeRect(FW-GOAL_W,gy,GOAL_W,GOAL_H);
+  // corner arcs
+  [4,FW-4].forEach(cx=>[4,FH-4].forEach(cy=>{
+    ctx.beginPath();ctx.arc(cx,cy,14,0,Math.PI/2*(cx<FW/2?1:-1)*(cy<FH/2?1:-1)*4);
+    // simple quarter circles
+  }));
+}
+
+function drawPlayers(){
+  players.forEach((team,ti)=>{
+    team.forEach((p,i)=>{
+      const sel=selectedP&&selectedP.t===ti&&selectedP.i===i;
+      // shadow
+      ctx.beginPath();ctx.arc(p.x+2,p.y+2,PR,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
+      // body gradient
+      const g=ctx.createRadialGradient(p.x-5,p.y-5,2,p.x,p.y,PR);
+      if(ti===0){g.addColorStop(0,'#88ccff');g.addColorStop(1,'#1458b8');}
+      else{g.addColorStop(0,'#ff9090');g.addColorStop(1,'#b01414');}
+      ctx.beginPath();ctx.arc(p.x,p.y,PR,0,Math.PI*2);
+      ctx.fillStyle=g;ctx.fill();
+      ctx.strokeStyle=ti===0?'rgba(88,164,255,.6)':'rgba(255,80,80,.6)';
+      ctx.lineWidth=1.5;ctx.stroke();
+      // selection ring
+      if(sel){
+        ctx.beginPath();ctx.arc(p.x,p.y,PR+6,0,Math.PI*2);
+        ctx.strokeStyle=ti===0?'#5ba4ff':'#ff5a5a';
+        ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);
+      }
+      // ball possession ring
+      if(p.hasBall){
+        ctx.beginPath();ctx.arc(p.x,p.y,PR+9,0,Math.PI*2);
+        ctx.strokeStyle='#f0c040';ctx.lineWidth=2.5;ctx.stroke();
+      }
+      // plan dot
+      if(p.plan){
+        ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);
+        ctx.fillStyle='#f0c040';ctx.fill();
+      }
+      // number
+      ctx.fillStyle='#fff';ctx.font='bold 11px Noto Sans SC';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(i+1,p.x,p.y);
+    });
+  });
+}
+
+function drawBall(){
+  ctx.beginPath();ctx.arc(ball.x+2,ball.y+2,BR,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.fill();
+  ctx.beginPath();ctx.arc(ball.x,ball.y,BR,0,Math.PI*2);
+  ctx.fillStyle='#fff';ctx.fill();
+  ctx.strokeStyle='#777';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.arc(ball.x,ball.y,BR*0.38,0,Math.PI*2);
+  ctx.fillStyle='#555';ctx.fill();
+}
+
+function render(){
+  ctx.clearRect(0,0,FW,FH);
+  drawField();drawPlayers();drawBall();
+}
+
+function drawArrow(c,x1,y1,x2,y2,color,spd,dashed=false){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+  if(len<4)return;
+  c.save();c.strokeStyle=color;c.lineWidth=1.8+spd*2.5;c.lineCap='round';
+  if(dashed)c.setLineDash([6,4]);
+  c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();c.setLineDash([]);
+  const ang=Math.atan2(dy,dx),hw=7+spd*5;
+  c.fillStyle=color;c.beginPath();c.moveTo(x2,y2);
+  c.lineTo(x2-hw*Math.cos(ang-.42),y2-hw*Math.sin(ang-.42));
+  c.lineTo(x2-hw*Math.cos(ang+.42),y2-hw*Math.sin(ang+.42));
+  c.closePath();c.fill();c.restore();
+}
+
+function drawArrows(){
+  actx.clearRect(0,0,FW,FH);
+  players[0].forEach((p)=>{
+    if(!p.plan)return;
+    const ex=p.x+p.plan.dx*60*p.plan.spd;
+    const ey=p.y+p.plan.dy*60*p.plan.spd;
+    drawArrow(actx,p.x,p.y,ex,ey,'rgba(88,164,255,.85)',p.plan.spd);
+    if(p.plan.shoot){
+      const sx=p.x+p.plan.dx*40*p.plan.spd;
+      const sy=p.y+p.plan.dy*40*p.plan.spd;
+      drawArrow(actx,sx,sy,sx+p.plan.shoot.dx*80*p.plan.shoot.spd,sy+p.plan.shoot.dy*80*p.plan.shoot.spd,'rgba(240,192,64,.9)',p.plan.shoot.spd,true);
+    }
+  });
+  if(drag){
+    const p=players[drag.t][drag.i];
+    const ddx=drag.sx-drag.cx,ddy=drag.sy-drag.cy;
+    const len=Math.hypot(ddx,ddy);
+    if(len>8){
+      const nx=ddx/len,ny=ddy/len,spd=Math.min(len/60,1);
+      if(drag.ph==='move') drawArrow(actx,p.x,p.y,p.x+nx*60*spd,p.y+ny*60*spd,'rgba(88,164,255,.9)',spd);
+      else drawArrow(actx,ball.x,ball.y,ball.x+nx*80*spd,ball.y+ny*80*spd,'rgba(240,192,64,.95)',spd,true);
+    }
+  }
+}
+
+// ─── INPUT ─────────────────────────────────────────────────────────────────
+function getPos(e){
+  const r=cvs.getBoundingClientRect();
+  const sx=FW/r.width,sy=FH/r.height;
+  const cx=e.touches?e.touches[0].clientX:e.clientX;
+  const cy=e.touches?e.touches[0].clientY:e.clientY;
+  return{x:(cx-r.left)*sx,y:(cy-r.top)*sy};
+}
+function hitPl(x,y,t){
+  for(let i=0;i<players[t].length;i++){
+    const p=players[t][i];
+    if(dist(x,y,p.x,p.y)<=PR+7)return i;
+  }
+  return -1;
+}
+
+cvs.addEventListener('mousedown',onDown);
+cvs.addEventListener('mousemove',onMove);
+cvs.addEventListener('mouseup',onUp);
+cvs.addEventListener('touchstart',e=>{e.preventDefault();onDown(e);},{passive:false});
+cvs.addEventListener('touchmove',e=>{e.preventDefault();onMove(e);},{passive:false});
+cvs.addEventListener('touchend',e=>{e.preventDefault();onUp(e);},{passive:false});
+
+function onDown(e){
+  if(phase!=='planning')return;
+  const t=planTeam;
+  if(MODE==='pve'&&t===1)return;
+  const pos=getPos(e);
+  const idx=hitPl(pos.x,pos.y,t);
+  if(idx<0)return;
+  selectedP={t,i:idx};
+  const p=players[t][idx];
+  let ph='move';
+  if(p.hasBall&&p.plan&&!p.plan.shoot) ph='shoot';
+  drag={t,i:idx,sx:pos.x,sy:pos.y,cx:pos.x,cy:pos.y,ph};
+  render();drawArrows();
+}
+function onMove(e){
+  if(!drag)return;
+  const pos=getPos(e);
+  drag.cx=pos.x;drag.cy=pos.y;
+  drawArrows();
+}
+function onUp(e){
+  if(!drag)return;
+  const ddx=drag.sx-drag.cx,ddy=drag.sy-drag.cy;
+  const len=Math.hypot(ddx,ddy);
+  if(len>8){
+    const nx=ddx/len,ny=ddy/len,spd=Math.min(len/60,1);
+    const p=players[drag.t][drag.i];
+    if(drag.ph==='move'){
+      if(!p.plan)p.plan={};
+      p.plan.dx=nx;p.plan.dy=ny;p.plan.spd=spd;
+      if(p.hasBall)showToast('移动已设定！再次拖拽该球员设定射球','info');
+    } else {
+      if(p.plan){p.plan.shoot={dx:nx,dy:ny,spd};showToast('⚽ 射球方向已设定！','goal');}
+    }
+  }
+  drag=null;
+  render();drawArrows();
+}
+
+// ─── AI PLAN ───────────────────────────────────────────────────────────────
+function aiPlan(){
+  const myGoalX=FW-GOAL_W/2, theirGoalX=GOAL_W/2, goalY=FH/2;
+  players[1].forEach((p)=>{
+    p.plan=null;
+    let dx,dy,spd;
+    if(DIFF==='easy'){
+      if(p.hasBall&&Math.random()<.35){
+        const ang=Math.atan2(goalY-p.y,theirGoalX-p.x)+(Math.random()-.5)*.9;
+        dx=Math.cos(ang);dy=Math.sin(ang);spd=.4+Math.random()*.4;
+        p.plan={dx,dy,spd,shoot:{dx:Math.cos(ang),dy:Math.sin(ang),spd:.85}};
+      } else {
+        const ang=Math.random()*Math.PI*2;
+        p.plan={dx:Math.cos(ang),dy:Math.sin(ang),spd:.15+Math.random()*.5};
+      }
+    } else if(DIFF==='medium'){
+      if(p.hasBall){
+        const ang=Math.atan2(goalY-p.y,theirGoalX-p.x)+(Math.random()-.5)*.35;
+        dx=Math.cos(ang);dy=Math.sin(ang);spd=.7;
+        p.plan={dx,dy,spd,shoot:{dx:Math.cos(ang),dy:Math.sin(ang),spd:.88}};
+      } else {
+        const ang=Math.atan2(ball.y-p.y,ball.x-p.x)+(Math.random()-.5)*.25;
+        const d=dist(p.x,p.y,ball.x,ball.y);
+        p.plan={dx:Math.cos(ang),dy:Math.sin(ang),spd:Math.max(.35,Math.min(.8,30/(d+10)))};
+      }
+    } else {
+      if(p.hasBall){
+        const ang=Math.atan2(goalY-p.y,theirGoalX-p.x)+(Math.random()-.5)*.12;
+        dx=Math.cos(ang);dy=Math.sin(ang);spd=.92;
+        p.plan={dx,dy,spd,shoot:{dx:Math.cos(ang),dy:Math.sin(ang),spd:1.0}};
+      } else {
+        const ang=Math.atan2(ball.y-p.y,ball.x-p.x);
+        p.plan={dx:Math.cos(ang),dy:Math.sin(ang),spd:.92};
+      }
+    }
+  });
+}
+
+// ─── EXECUTION ─────────────────────────────────────────────────────────────
+let sDone=[[false,false,false,false,false],[false,false,false,false,false]];
+
+function startExec(){
+  phase='executing';simStep=0;goalEvent=null;
+  sDone=[[false,false,false,false,false],[false,false,false,false,false]];
+  btnExec.style.display='none';btnConfirm.style.display='none';btnReset.style.display='none';
+  elPhase.textContent='执行中…';
+  elInfo.innerHTML='回合执行中，请观看球员行动！';
+  simIntvl=setInterval(simTick,16);
+}
+
+function simTick(){
+  if(goalEvent){clearInterval(simIntvl);handleGoal(goalEvent);return;}
+  const prog=simStep/SIM_STEPS;
+  const SHOOT_STEP=28;
+
+  players.forEach((team,ti)=>{
+    team.forEach((p,i)=>{
+      if(!p.plan)return;
+      const spd=p.plan.spd*MAX_SPD;
+      p.vx=p.plan.dx*spd*Math.max(0,1-prog*2.2);
+      p.vy=p.plan.dy*spd*Math.max(0,1-prog*2.2);
+      if(p.plan.shoot&&!sDone[ti][i]&&simStep===SHOOT_STEP){
+        sDone[ti][i]=true;
+        if(p.hasBall){
+          const sv=p.plan.shoot.spd*MAX_SPD*1.5;
+          ball.vx=p.plan.shoot.dx*sv;
+          ball.vy=p.plan.shoot.dy*sv;
+          p.hasBall=false;ballOwner=null;
+        }
+      }
+    });
+  });
+
+  // move players
+  players.forEach(t=>t.forEach(p=>{
+    p.x=clamp(p.x+p.vx,PR,FW-PR);
+    p.y=clamp(p.y+p.vy,PR,FH-PR);
+    p.vx*=FRICTION;p.vy*=FRICTION;
+  }));
+
+  // move ball
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  ball.vx*=BFRICTION;ball.vy*=BFRICTION;
+
+  // wall bounce
+  if(ball.x-BR<0){ball.x=BR;ball.vx=Math.abs(ball.vx)*.55;}
+  if(ball.x+BR>FW){ball.x=FW-BR;ball.vx=-Math.abs(ball.vx)*.55;}
+  if(ball.y-BR<4){ball.y=BR+4;ball.vy=Math.abs(ball.vy)*.55;}
+  if(ball.y+BR>FH-4){ball.y=FH-BR-4;ball.vy=-Math.abs(ball.vy)*.55;}
+
+  // carry
+  if(ballOwner){
+    const op=players[ballOwner.t][ballOwner.i];
+    if(op.hasBall){
+      ball.x=op.x+(ballOwner.t===0?PR:-PR);
+      ball.y=op.y;ball.vx=op.vx;ball.vy=op.vy;
+    }
+  }
+
+  checkCollisions();
+
+  // goal check
+  const gy=(FH-GOAL_H)/2;
+  if(ball.x-BR<=GOAL_W&&ball.y>=gy&&ball.y<=gy+GOAL_H){goalEvent={t:1};return;}
+  if(ball.x+BR>=FW-GOAL_W&&ball.y>=gy&&ball.y<=gy+GOAL_H){goalEvent={t:0};return;}
+
+  simStep++;
+  render();drawArrows();
+  if(simStep>=SIM_STEPS){clearInterval(simIntvl);endRoundExec();}
+}
+
+function checkCollisions(){
+  players.forEach((team,ti)=>{
+    team.forEach((p,i)=>{
+      const db=dist(p.x,p.y,ball.x,ball.y);
+      if(!ballOwner&&db<CARRY_D){
+        ballOwner={t:ti,i};p.hasBall=true;return;
+      }
+      if(ballOwner&&ballOwner.t!==ti){
+        const carrier=players[ballOwner.t][ballOwner.i];
+        if(dist(p.x,p.y,carrier.x,carrier.y)<TACKLE_D){
+          carrier.hasBall=false;p.hasBall=true;
+          ballOwner={t:ti,i};
+          ball.x=p.x+(ti===0?PR:-PR);ball.y=p.y;
+        }
+      }
+    });
+  });
+}
+
+function handleGoal(ev){
+  if(ev.t===0){scHome++;elScH.textContent=scHome;showToast('⚽ 进球！蓝队得分！','goal');}
+  else{scAway++;elScA.textContent=scAway;showToast('⚽ 进球！红队得分！','goal');}
+  softResetPositions();
+  setTimeout(endRoundExec,1300);
+}
+
+function endRoundExec(){
+  players.forEach(t=>t.forEach(p=>{p.hasBall=false;p.vx=0;p.vy=0;}));
+  ballOwner=null;
+
+  // halftime
+  if(round===HALF_ROUNDS){
+    showHT('上半场结束',`${scHome} – ${scAway}`,'中场休息，调整战术！','开始下半场',()=>{
+      round=HALF_ROUNDS+1;prepareRound();
+    });return;
+  }
+  // full time
+  if(gameStage==='normal'&&round===HALF_ROUNDS*2){
+    if(scHome===scAway){
+      // go ET
+      gameStage='et';
+      showHT('90分钟结束 — 平局！',`${scHome} – ${scAway}`,'进入加时赛（10轮）！','开始加时赛',()=>{
+        round=HALF_ROUNDS*2+1;prepareRound();
+      });return;
+    }
+    endGame('normal');return;
+  }
+  // end of ET
+  if(gameStage==='et'&&round===HALF_ROUNDS*2+ET_ROUNDS){
+    if(scHome===scAway){
+      // penalty
+      gameStage='penalty';
+      showHT('加时赛结束 — 仍然平局！',`${scHome} – ${scAway}`,'进入点球大战！','开始点球大战',()=>{
+        startPenalty();
+      });return;
+    }
+    endGame('et');return;
+  }
+  round++;prepareRound();
+}
+
+function prepareRound(){
+  updateTimeDisplay();
+  players.forEach(t=>t.forEach(p=>{p.plan=null;}));
+  selectedP=null;drag=null;
+  homePlanned=false;awayPlanned=false;
+  planTeam=0;phase='planning';
+  btnReset.style.display='';btnConfirm.style.display='';btnExec.style.display='none';
+  btnConfirm.disabled=false;
+  updatePhaseUI();
+  render();drawArrows();
+}
+
+function updatePhaseUI(){
+  elScH.textContent=scHome;elScA.textContent=scAway;
+  if(phase==='planning'){
+    const isAI=MODE==='pve'&&planTeam===1;
+    if(isAI){elPhase.textContent='AI 规划中…';elInfo.innerHTML='正在等待 AI 完成规划…';btnConfirm.disabled=true;}
+    else{
+      const tn=MODE==='pvp'?(planTeam===0?'蓝队':'红队'):'玩家';
+      elPhase.textContent=`${tn} 规划`;
+      elInfo.innerHTML=`<b>${tn}</b>：点击球员拖拽设定移动。持球球员可额外拖拽设定射球方向。`;
+      btnConfirm.disabled=false;
+    }
+  }
+}
+
+// ─── BTN EVENTS ────────────────────────────────────────────────────────────
+btnConfirm.addEventListener('click',()=>{
+  if(planTeam===0){
+    homePlanned=true;
+    if(MODE==='pve'){
+      planTeam=1;phase='awaiting';updatePhaseUI();
+      setTimeout(()=>{
+        aiPlan();awayPlanned=true;
+        btnConfirm.style.display='none';btnReset.style.display='none';
+        btnExec.style.display='';
+        elPhase.textContent='准备执行';
+        elInfo.innerHTML='双方规划完毕，点击 <b>执行回合</b>！';
+      },400+Math.random()*700);
+    } else {
+      planTeam=1;phase='planning';
+      players[0].forEach(p=>{if(p.plan){}});// keep blue arrows visible
+      updatePhaseUI();render();drawArrows();
+    }
+  } else {
+    awayPlanned=true;
+    btnConfirm.style.display='none';btnReset.style.display='none';
+    btnExec.style.display='';
+    elPhase.textContent='准备执行';
+    elInfo.innerHTML='双方规划完毕，点击 <b>执行回合</b>！';
+  }
+});
+
+btnReset.addEventListener('click',()=>{
+  players[planTeam].forEach(p=>p.plan=null);
+  selectedP=null;drag=null;render();drawArrows();
+  showToast('规划已重置','info');
+});
+
+btnExec.addEventListener('click',startExec);
+
+// ─── HT MODAL ──────────────────────────────────────────────────────────────
+function showHT(title,score,msg,btnTxt,cb){
+  document.getElementById('ht-title').textContent=title;
+  document.getElementById('ht-score').textContent=score;
+  document.getElementById('ht-msg').textContent=msg;
+  document.getElementById('ht-btn').textContent=btnTxt;
+  htOverlay.classList.add('active');
+  document.getElementById('ht-btn').onclick=()=>{htOverlay.classList.remove('active');cb&&cb();};
+}
+
+// ─── END GAME ──────────────────────────────────────────────────────────────
+function endGame(stage,penNote){
+  let title,teamTxt,note,icon;
+  const h=scHome,a=scAway;
+  const hLabel=document.getElementById('lbl-home').textContent;
+  const aLabel=document.getElementById('lbl-away').textContent;
+
+  if(h>a){
+    title='胜利！';icon='🏆';
+    teamTxt=`<b>${hLabel}</b> 赢得本场比赛！`;
+  } else if(a>h){
+    title='败北';icon='😞';
+    teamTxt=`<b>${aLabel}</b> 赢得本场比赛`;
+  } else {
+    title='平局';icon='🤝';
+    teamTxt='势均力敌，不分胜负';
+  }
+
+  if(stage==='et') note='经过加时赛决出胜负';
+  else if(stage==='penalty') note=penNote||'经过点球大战决出胜负';
+  else note='常规赛结束';
+
+  document.getElementById('vic-title').textContent=title;
+  document.getElementById('vic-title').className='victory-title'+(h<a?' lose':h===a?' draw':'');
+  document.getElementById('trophy-icon').textContent=icon;
+  document.getElementById('vic-score').innerHTML=`<span class="s-blue">${h}</span><span class="s-sep">–</span><span class="s-red">${a}</span>`;
+  document.getElementById('vic-team').innerHTML=teamTxt;
+  document.getElementById('vic-note').textContent=note;
+  showScreen('screen-victory');
+}
+
+document.getElementById('vic-again').addEventListener('click',()=>{
+  showScreen('screen-game');
+  startNewGame();
+});
+document.getElementById('vic-menu').addEventListener('click',()=>{
+  showScreen('screen-start');
+});
+
+// ─── PENALTY SHOOTOUT ──────────────────────────────────────────────────────
+const PW=600,PH=300;
+// penalty field coords
+const PEN_GY=60, PEN_GH=160, PEN_GX=PW-40, PEN_GW=16;
+const PEN_BALL_START={x:160,y:PH/2};
+
+function startPenalty(){
+  penRound=0;penTeam=0;penScHome=0;penScAway=0;
+  penResults=[[],[]];
+  buildPenDots();
+  showScreen('screen-penalty');
+  document.getElementById('pen-lbl-home').textContent=document.getElementById('lbl-home').textContent;
+  document.getElementById('pen-lbl-away').textContent=document.getElementById('lbl-away').textContent;
+  penBall={x:PEN_BALL_START.x,y:PEN_BALL_START.y,vx:0,vy:0};
+  penPhase='aim';
+  nextPenKick();
+}
+
+function buildPenDots(){
+  ['home','away'].forEach((side,ti)=>{
+    const el=document.getElementById(`pen-dots-${side}`);
+    el.innerHTML='';
+    for(let i=0;i<5;i++){
+      const d=document.createElement('div');
+      d.className='pen-dot';d.id=`pd-${ti}-${i}`;
+      el.appendChild(d);
+    }
+  });
+}
+
+function nextPenKick(){
+  // Check if penalty can be decided early
+  if(penRound>=5){
+    // sudden death check
+    if(penRound>=5&&penRound%2===0){
+      const kicks=penRound/2;
+      if(penScHome!==penScAway){finishPenalty();return;}
+    }
+    if(penRound>=10){finishPenalty();return;}
+  }
+  const kickIdx=Math.floor(penRound/2);
+  const ti=penRound%2; // 0=home,1=away
+
+  // Update dot to active
+  const dotId=`pd-${ti}-${kickIdx}`;
+  const dot=document.getElementById(dotId);
+  if(dot) dot.className=`pen-dot ${ti===0?'active-blue':'active-red'}`;
+
+  const teamName=ti===0?document.getElementById('lbl-home').textContent:document.getElementById('lbl-away').textContent;
+  const isAI=MODE==='pve'&&ti===1;
+
+  if(isAI){
+    document.getElementById('pen-info').innerHTML=`<b>AI 射门中…</b>`;
+    drawPenField();
+    setTimeout(()=>{
+      // AI picks random target in goal
+      const ty=PEN_GY+20+Math.random()*(PEN_GH-40);
+      executePenShot(ti,tx=>{},ty,true);
+    },800);
+  } else {
+    document.getElementById('pen-info').innerHTML=`<b>${teamName}</b>：点击球门目标位置射门！`;
+    penPhase='aim';
+    drawPenField();
+  }
+}
+
+function drawPenField(){
+  penCtx.clearRect(0,0,PW,PH);
+  // field bg
+  penCtx.fillStyle='#2e6b28';penCtx.fillRect(0,0,PW,PH);
+  for(let x=0;x<PW;x+=60){
+    penCtx.fillStyle='rgba(0,0,0,.055)';penCtx.fillRect(x,0,30,PH);
+  }
+  penCtx.strokeStyle='rgba(255,255,255,.5)';penCtx.lineWidth=2;
+
+  // penalty spot arc
+  penCtx.beginPath();penCtx.arc(PEN_BALL_START.x,PH/2,50,-.7,.7);penCtx.stroke();
+
+  // goal
+  penCtx.fillStyle='rgba(255,255,255,.1)';
+  penCtx.fillRect(PEN_GX,PEN_GY,PEN_GW,PEN_GH);
+  penCtx.strokeStyle='rgba(255,255,255,.9)';
+  penCtx.strokeRect(PEN_GX,PEN_GY,PEN_GW,PEN_GH);
+
+  // goal posts highlighted
+  penCtx.beginPath();penCtx.moveTo(PEN_GX,PEN_GY);penCtx.lineTo(PEN_GX+PEN_GW,PEN_GY);penCtx.stroke();
+  penCtx.beginPath();penCtx.moveTo(PEN_GX,PEN_GY+PEN_GH);penCtx.lineTo(PEN_GX+PEN_GW,PEN_GY+PEN_GH);penCtx.stroke();
+
+  // target zones hint
+  if(penPhase==='aim'){
+    const zones=[{y:PEN_GY+8,h:PEN_GH/3-8},{y:PEN_GY+PEN_GH/3,h:PEN_GH/3},{y:PEN_GY+PEN_GH*2/3,h:PEN_GH/3-8}];
+    zones.forEach(z=>{
+      penCtx.fillStyle='rgba(91,164,255,.08)';
+      penCtx.fillRect(PEN_GX+1,z.y,PEN_GW-2,z.h);
+    });
+  }
+
+  // ball
+  penCtx.beginPath();penCtx.arc(penBall.x,penBall.y,9,0,Math.PI*2);
+  penCtx.fillStyle='#fff';penCtx.fill();
+  penCtx.strokeStyle='#777';penCtx.lineWidth=1.5;penCtx.stroke();
+  penCtx.beginPath();penCtx.arc(penBall.x,penBall.y,3.5,0,Math.PI*2);
+  penCtx.fillStyle='#555';penCtx.fill();
+
+  // keeper
+  const kx=PEN_GX-8;
+  const ky=PH/2-20;
+  penCtx.beginPath();penCtx.arc(kx,ky,14,0,Math.PI*2);
+  const kg=penCtx.createRadialGradient(kx-4,ky-4,2,kx,ky,14);
+  kg.addColorStop(0,'#ff9090');kg.addColorStop(1,'#b01414');
+  penCtx.fillStyle=kg;penCtx.fill();
+
+  // shooter
+  penCtx.beginPath();penCtx.arc(PEN_BALL_START.x-30,PH/2,14,0,Math.PI*2);
+  const sg=penCtx.createRadialGradient(PEN_BALL_START.x-35,PH/2-4,2,PEN_BALL_START.x-30,PH/2,14);
+  sg.addColorStop(0,'#88ccff');sg.addColorStop(1,'#1458b8');
+  penCtx.fillStyle=sg;penCtx.fill();
+}
+
+function executePenShot(ti,_,targetY,isAIShot){
+  penPhase='animating';
+  penCvs.style.cursor='default';
+  // animate ball from start to goal
+  const bx0=PEN_BALL_START.x,by0=PH/2;
+  const bx1=PEN_GX+PEN_GW/2,by1=targetY;
+  let t=0;
+  const animId=setInterval(()=>{
+    t+=0.045;
+    penBall.x=bx0+(bx1-bx0)*t;
+    penBall.y=by0+(by1-by0)*t;
+    drawPenField();
+    if(t>=1){
+      clearInterval(animId);
+      const inGoal=targetY>=PEN_GY+10&&targetY<=PEN_GY+PEN_GH-10;
+      // keeper dive (random save)
+      let saved=false;
+      if(inGoal){
+        const savProb=DIFF==='easy'?0.1:DIFF==='medium'?0.2:0.3;
+        if(!isAIShot&&Math.random()<savProb) saved=true;
+      }
+      const scored=inGoal&&!saved;
+      penResults[ti].push(scored);
+      const dotId=`pd-${ti}-${Math.floor(penRound/2)}`;
+      const dot=document.getElementById(dotId);
+      if(dot) dot.className=`pen-dot ${scored?(ti===0?'scored-blue':'scored-red'):'missed'}`;
+      if(scored){
+        if(ti===0) penScHome++;
+        else penScAway++;
+      }
+      document.getElementById('pen-info').innerHTML=scored?`<b>⚽ 进球！</b>`:'<b>未进 😓</b>';
+      setTimeout(()=>{
+        penRound++;
+        // reset ball
+        penBall={x:PEN_BALL_START.x,y:PH/2,vx:0,vy:0};
+        // early decision check
+        if(penRound>=2&&penRound%2===0){
+          const kicks=penRound/2;
+          // home leads and away can't catch
+          if(penScHome>penScAway+(5-kicks)||penScAway>penScHome+(5-kicks)){finishPenalty();return;}
+          if(kicks>=5&&penScHome!==penScAway){finishPenalty();return;}
+        }
+        if(penRound>=10){finishPenalty();return;}
+        nextPenKick();
+      },1000);
+    }
+  },18);
+}
+
+penCvs.addEventListener('click',e=>{
+  if(penPhase!=='aim')return;
+  const ti=penRound%2;
+  if(MODE==='pve'&&ti===1)return;
+  const r=penCvs.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(PW/r.width);
+  const py=(e.clientY-r.top)*(PH/r.height);
+  // must click in goal area X range
+  if(px<PEN_GX-10)return;
+  executePenShot(ti,px,py,false);
+});
+
+penCvs.addEventListener('mousemove',e=>{
+  if(penPhase!=='aim')return;
+  const r=penCvs.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(PW/r.width);
+  if(px>=PEN_GX-10) penCvs.style.cursor='crosshair';
+  else penCvs.style.cursor='default';
+  drawPenField();
+  if(penPhase==='aim'){
+    const py=(e.clientY-r.top)*(PH/r.height);
+    if(px>=PEN_GX-30){
+      penCtx.beginPath();penCtx.arc(px,py,5,0,Math.PI*2);
+      penCtx.fillStyle='rgba(240,192,64,.8)';penCtx.fill();
+    }
+  }
+});
+
+function finishPenalty(){
+  // determine winner by pen score
+  let note;
+  if(penScHome>penScAway){
+    scHome++;note=`${document.getElementById('lbl-home').textContent} 以点球大战（${penScHome}-${penScAway}）取胜`;
+  } else {
+    scAway++;note=`${document.getElementById('lbl-away').textContent} 以点球大战（${penScAway}-${penScHome}）取胜`;
+  }
+  elScH.textContent=scHome;elScA.textContent=scAway;
+  setTimeout(()=>endGame('penalty',note),600);
+}
+
+// ─── START SCREEN LOGIC ────────────────────────────────────────────────────
+document.querySelectorAll('.opt-btn[data-mode]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.opt-btn[data-mode]').forEach(x=>x.classList.remove('sel-blue'));
+    b.classList.add('sel-blue');MODE=b.dataset.mode;
+    const ds=document.getElementById('diff-section');
+    ds.classList.toggle('hidden',MODE==='pvp');
+  });
+});
+document.querySelectorAll('.opt-btn[data-diff]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.opt-btn[data-diff]').forEach(x=>x.classList.remove('sel-gold'));
+    b.classList.add('sel-gold');DIFF=b.dataset.diff;
+  });
+});
+
+document.getElementById('btn-start').addEventListener('click',()=>{
+  showScreen('screen-game');
+  startNewGame();
+});
+
+function startNewGame(){
+  round=1;scHome=0;scAway=0;gameStage='normal';
+  elScH.textContent='0';elScA.textContent='0';
+  document.getElementById('lbl-home').textContent=MODE==='pvp'?'蓝队':'玩家';
+  document.getElementById('lbl-away').textContent=MODE==='pvp'?'红队':'AI';
+  initPlayers();
+  prepareRound();
+  render();drawArrows();
+}
+
+// ─── BOOT ──────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
