@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta content="default-src 'none'; style-src * 'unsafe-inline'; script-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; media-src * data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'" http-equiv="Content-Security-Policy"/>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>钢铁暴风 - Steel Storm</title>
+<!-- TailwindCSS -->
+<script src="https://image.uc.cn/s/uae/g/3n/mos-production/0915/3.4.17.js"></script>
+<!-- Font Awesome -->
+<script src="https://image.uc.cn/s/uae/g/3n/mos-production/fontawesome-free-7.1.0-web/js/all.min.js"></script>
+<link href="https://image.uc.cn/s/uae/g/3n/mos-production/fontawesome-free-7.1.0-web/css/fontawesome.min.css" rel="stylesheet"/>
+<style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* UI Overlay Layer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        /* Interactive elements need pointer-events auto */
+        .interactive { pointer-events: auto; }
+
+        /* HUD Styles */
+        .hud-panel {
+            background: rgba(10, 20, 30, 0.85);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            color: #aaddff;
+            backdrop-filter: blur(4px);
+        }
+
+        .health-bar-bg { background: #333; height: 100%; width: 100%; position: relative; overflow: hidden; }
+        .health-bar-fill { background: linear-gradient(90deg, #ff3333, #ff6666); height: 100%; width: 100%; transition: width 0.2s; }
+        .armor-bar-fill { background: linear-gradient(90deg, #3388ff, #66aaff); height: 100%; width: 100%; transition: width 0.2s; }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 40px; height: 40px; border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+        #crosshair::after { content: ''; width: 4px; height: 4px; background: #ff3333; border-radius: 50%; }
+
+        /* Minimap */
+        #minimap-container {
+            width: 200px; height: 200px; border-radius: 50%; overflow: hidden;
+            border: 2px solid rgba(100, 200, 255, 0.5); background: rgba(0, 0, 0, 0.5);
+        }
+        #minimap-canvas { width: 100%; height: 100%; }
+
+        /* Loading / Start Screen */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #050a10 0%, #0f1f2e 100%);
+            z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto;
+        }
+        
+        .steel-text {
+            font-size: 4rem; font-weight: 900; color: #fff; text-transform: uppercase;
+            letter-spacing: 5px; text-shadow: 0 0 20px rgba(100, 200, 255, 0.8);
+            margin-bottom: 2rem;
+        }
+
+        .btn-start {
+            padding: 15px 40px; font-size: 1.5rem; font-weight: bold; color: #fff;
+            background: linear-gradient(90deg, #1a5c8a, #2d8a6e); border: none;
+            border-radius: 5px; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(42, 138, 110, 0.5);
+        }
+        .btn-start:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(42, 138, 110, 0.8); }
+
+        /* Notifications */
+        #notification-area {
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        .toast {
+            background: rgba(0, 0, 0, 0.7); color: #fff; padding: 8px 16px;
+            border-left: 4px solid #ffaa00; border-radius: 2px; animation: fadeOut 3s forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; pointer-events: none; }
+        }
+
+        /* Damage Overlay */
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0);
+            transition: box-shadow 0.1s; pointer-events: none; z-index: 5;
+        }
+    </style>
+<!-- Import Maps for Three.js and Cannon-es -->
+<script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.staticfile.net/three.js/0.160.0/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+</head>
+<body>
+<!-- 3D Canvas Container -->
+<div id="game-container"></div>
+<!-- Damage Feedback -->
+<div id="damage-overlay"></div>
+<!-- UI Layer -->
+<div class="hidden" id="ui-layer">
+<!-- Top Center: Compass / Mission -->
+<div class="absolute top-4 left-1/2 transform -translate-x-1/2 hud-panel px-6 py-2 rounded-full flex gap-8 text-sm font-bold tracking-widest">
+<span id="mission-text">任务: 歼灭所有敌军坦克</span>
+<span id="score-text">击杀: 0</span>
+</div>
+<!-- Top Right: FPS & Time -->
+<div class="absolute top-4 right-4 hud-panel p-2 rounded text-xs font-mono">
+<div id="fps-counter">FPS: 60</div>
+<div id="game-time">12:00</div>
+</div>
+<!-- Center: Crosshair -->
+<div id="crosshair"></div>
+<!-- Bottom Left: Status Panel -->
+<div class="absolute bottom-4 left-4 w-80 hud-panel p-4 rounded-lg">
+<div class="flex justify-between items-center mb-2">
+<span class="text-lg font-bold text-yellow-400">M1A2 主战坦克</span>
+<span class="text-xs text-gray-400">状态: 良好</span>
+</div>
+<!-- Health -->
+<div class="mb-2">
+<div class="flex justify-between text-xs mb-1">
+<span>结构完整性 (HP)</span>
+<span id="hp-val">100%</span>
+</div>
+<div class="health-bar-bg h-3 rounded">
+<div class="health-bar-fill" id="hp-bar"></div>
+</div>
+</div>
+<!-- Armor -->
+<div class="mb-2">
+<div class="flex justify-between text-xs mb-1">
+<span>装甲强度</span>
+<span id="armor-val">100%</span>
+</div>
+<div class="health-bar-bg h-2 rounded">
+<div class="armor-bar-fill" id="armor-bar"></div>
+</div>
+</div>
+<!-- Ammo -->
+<div class="flex gap-4 mt-4">
+<div class="flex-1 bg-black/40 p-2 rounded border border-gray-700">
+<div class="text-xs text-gray-400 mb-1">主炮 (AP)</div>
+<div class="text-xl font-mono text-center text-white" id="ammo-main">20 / 20</div>
+</div>
+<div class="flex-1 bg-black/40 p-2 rounded border border-gray-700">
+<div class="text-xs text-gray-400 mb-1">机枪 (MG)</div>
+<div class="text-xl font-mono text-center text-white" id="ammo-mg">∞</div>
+</div>
+</div>
+</div>
+<!-- Bottom Right: Minimap & Radar -->
+<div class="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+<div id="minimap-container">
+<canvas height="200" id="minimap-canvas" width="200"></canvas>
+</div>
+<div class="hud-panel px-3 py-1 rounded text-xs">
+<span id="speed-indicator">0 km/h</span>
+</div>
+</div>
+<!-- Notifications -->
+<div id="notification-area"></div>
+</div>
+<!-- Start Screen -->
+<div id="start-screen">
+<div class="steel-text">Steel Storm</div>
+<div class="text-gray-400 mb-8 tracking-widest text-sm">钢铁暴风 - 第三人称坦克战争模拟</div>
+<div class="hud-panel p-6 rounded-lg mb-8 text-left max-w-md">
+<h3 class="text-blue-400 font-bold mb-4 border-b border-gray-700 pb-2">操作指南</h3>
+<ul class="text-sm space-y-2 text-gray-300">
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">W</span> <span class="bg-gray-700 px-2 py-0.5 rounded text-white">S</span> 前进 / 后退</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">A</span> <span class="bg-gray-700 px-2 py-0.5 rounded text-white">D</span> 车体旋转</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">鼠标移动</span> 炮塔瞄准</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">左键</span> 发射主炮</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">右键</span> 机枪射击</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">R</span> 装填弹药</li>
+<li><span class="bg-gray-700 px-2 py-0.5 rounded text-white">N</span> 开启/关闭 夜视仪</li>
+</ul>
+</div>
+<button class="btn-start" id="start-btn">开始战斗</button>
+</div>
+<!-- Game Over Screen -->
+<div class="hidden absolute top-0 left-0 w-full h-full bg-black/90 z-50 flex flex-col items-center justify-center" id="game-over-screen">
+<h1 class="text-6xl text-red-600 font-bold mb-4">任务失败</h1>
+<p class="text-white text-xl mb-8">你的坦克已被摧毁</p>
+<button class="btn-start" id="restart-btn">重新部署</button>
+</div>
+<script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import * as CANNON from 'cannon-es';
+
+        // --- src/core/Config.js ---
+        const CONFIG = {
+            terrainSize: 1000,
+            chunkSize: 100,
+            colors: {
+                player: 0x4a6fa5,
+                enemy: 0xa54a4a,
+                terrain: 0x3b4d31,
+                sky: 0x87ceeb
+            },
+            physics: {
+                gravity: -9.82,
+                material: {
+                    ground: { friction: 0.8, restitution: 0.1 }
+                }
+            }
+        };
+
+        // --- src/core/EventManager.js ---
+        class EventManager {
+            constructor() {
+                this.events = {};
+            }
+            on(event, listener) {
+                if (!this.events[event]) this.events[event] = [];
+                this.events[event].push(listener);
+            }
+            emit(event, data) {
+                if (this.events[event]) {
+                    this.events[event].forEach(l => l(data));
+                }
+            }
+        }
+        const Events = new EventManager();
+
+        // --- src/audio/AudioManager.js ---
+        class AudioManager {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0.5;
+            }
+
+            playShoot() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            }
+
+            playExplosion() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const bufferSize = this.ctx.sampleRate * 1.0; 
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.0);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                noise.start();
+            }
+
+            playEngine(speed) {
+                // Simplified engine sound simulation (continuous loop logic would be more complex)
+                // For now, we skip continuous engine drone to avoid annoyance, using only event sounds.
+            }
+        }
+        const Audio = new AudioManager();
+
+        // --- src/physics/PhysicsWorld.js ---
+        class PhysicsWorld {
+            constructor() {
+                this.world = new CANNON.World();
+                this.world.gravity.set(0, CONFIG.physics.gravity, 0);
+                this.world.broadphase = new CANNON.NaiveBroadphase();
+                this.world.solver.iterations = 10;
+
+                // Materials
+                const groundMat = new CANNON.Material();
+                const tankMat = new CANNON.Material();
+                const tankGroundContact = new CANNON.ContactMaterial(groundMat, tankMat, {
+                    friction: 0.3,
+                    restitution: 0.0
+                });
+                this.world.addContactMaterial(tankGroundContact);
+                this.materials = { ground: groundMat, tank: tankMat };
+            }
+
+            update(dt) {
+                this.world.step(1 / 60, dt, 3);
+            }
+        }
+
+        // --- src/renderer/SceneSetup.js ---
+        function createScene() {
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.colors.sky);
+            scene.fog = new THREE.Fog(CONFIG.colors.sky, 20, 150);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            hemiLight.position.set(0, 200, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(100, 200, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            return scene;
+        }
+
+        // --- src/terrain/TerrainGenerator.js ---
+        function createTerrainMesh(size, segments) {
+            const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+            geometry.rotateX(-Math.PI / 2);
+            
+            // Simple procedural height
+            const vertices = geometry.attributes.position.array;
+            for (let i = 0; i < vertices.length; i += 3) {
+                const x = vertices[i];
+                const z = vertices[i + 2];
+                // Combine sine waves for hills
+                vertices[i + 1] = Math.sin(x / 30) * 2 + Math.cos(z / 30) * 2 + Math.sin(x/10 + z/10)*0.5;
+            }
+            geometry.computeVertexNormals();
+
+            const material = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.terrain,
+                roughness: 0.8,
+                metalness: 0.1,
+                flatShading: true
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        function createTerrainBody(heightData, size, segments) {
+            // Cannon heightfield requires specific data format
+            const matrix = [];
+            const sizeX = segments + 1;
+            const sizeZ = segments + 1;
+            
+            // Extract height from geometry logic (re-simulating)
+            for (let i = 0; i < sizeX; i++) {
+                matrix.push([]);
+                for (let j = 0; j < sizeZ; j++) {
+                    const x = (i / segments) * size - size/2;
+                    const z = (j / segments) * size - size/2;
+                    const y = Math.sin(x / 30) * 2 + Math.cos(z / 30) * 2 + Math.sin(x/10 + z/10)*0.5;
+                    matrix[i].push(y);
+                }
+            }
+
+            const hfShape = new CANNON.Heightfield(matrix, {
+                elementSize: size / segments
+            });
+            const hfBody = new CANNON.Body({ mass: 0 });
+            hfBody.addShape(hfShape);
+            // Rotate -90 deg around X to match Three.js plane
+            hfBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            return hfBody;
+        }
+
+        // --- src/particles/ParticleSystem.js ---
+        class ParticleSystem {
+            constructor(scene) {
+                this.scene = scene;
+                this.particles = [];
+                this.geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                this.material = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            }
+
+            createExplosion(position) {
+                const count = 10;
+                for (let i = 0; i < count; i++) {
+                    const mesh = new THREE.Mesh(this.geometry, this.material.clone());
+                    mesh.position.copy(position);
+                    
+                    // Random velocity
+                    const vel = new THREE.Vector3(
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10 + 5,
+                        (Math.random() - 0.5) * 10
+                    );
+                    
+                    this.scene.add(mesh);
+                    this.particles.push({ mesh, vel, life: 1.0 });
+                }
+            }
+
+            update(dt) {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.life -= dt;
+                    p.mesh.position.addScaledVector(p.vel, dt);
+                    p.vel.y -= 9.8 * dt; // Gravity
+                    p.mesh.rotation.x += dt * 2;
+                    p.mesh.scale.setScalar(p.life);
+                    p.mesh.material.opacity = p.life;
+                    p.mesh.material.transparent = true;
+
+                    if (p.life <= 0) {
+                        this.scene.remove(p.mesh);
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // --- src/tanks/Tank.js ---
+        class Tank {
+            constructor(scene, physicsWorld, x, z, color, isPlayer = false) {
+                this.scene = scene;
+                this.world = physicsWorld;
+                this.isPlayer = isPlayer;
+                this.hp = 100;
+                this.maxHp = 100;
+                this.dead = false;
+                this.color = color;
+
+                // Group structure
+                this.mesh = new THREE.Group();
+                this.mesh.position.set(x, 5, z);
+                
+                // Chassis
+                const chassisGeo = new THREE.BoxGeometry(2, 1, 4);
+                const chassisMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+                this.chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
+                this.chassisMesh.castShadow = true;
+                this.mesh.add(this.chassisMesh);
+
+                // Turret
+                const turretGeo = new THREE.BoxGeometry(1.8, 0.8, 2);
+                this.turretMesh = new THREE.Mesh(turretGeo, chassisMat);
+                this.turretMesh.position.y = 0.6;
+                this.mesh.add(this.turretMesh);
+
+                // Barrel
+                const barrelGeo = new THREE.CylinderGeometry(0.2, 0.2, 3);
+                this.barrelMesh = new THREE.Mesh(barrelGeo, new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                this.barrelMesh.rotation.x = Math.PI / 2;
+                this.barrelMesh.position.set(0, 0.6, 1.5);
+                this.turretMesh.add(this.barrelMesh);
+
+                this.scene.add(this.mesh);
+
+                // Physics Body
+                const shape = new CANNON.Box(new CANNON.Vec3(1, 0.5, 2));
+                this.body = new CANNON.Body({ mass: 5000, material: physicsWorld.materials.tank });
+                this.body.addShape(shape);
+                this.body.position.set(x, 5, z);
+                this.body.linearDamping = 0.5;
+                this.body.angularDamping = 0.5;
+                this.world.addBody(this.body);
+
+                // State
+                this.cooldown = 0;
+            }
+
+            update(dt) {
+                if (this.dead) return;
+
+                // Sync visual with physics
+                this.mesh.position.copy(this.body.position);
+                this.mesh.quaternion.copy(this.body.quaternion);
+
+                if (this.cooldown > 0) this.cooldown -= dt;
+            }
+
+            move(forward, turn) {
+                if (this.dead) return;
+                const speed = 15;
+                const rotSpeed = 2;
+
+                // Local vectors
+                const v = new CANNON.Vec3(0, 0, forward * speed);
+                this.body.wakeUp();
+                
+                // Apply force in local direction
+                const worldForce = this.body.quaternion.vmult(v);
+                this.body.applyForce(worldForce, this.body.position);
+
+                // Apply torque for rotation
+                this.body.angularVelocity.y = turn * rotSpeed;
+            }
+
+            rotateTurret(angleY, angleX) {
+                if (this.dead) return;
+                // Turret rotation is relative to chassis
+                this.turretMesh.rotation.y = angleY;
+                this.barrelMesh.rotation.x = Math.PI / 2 - angleX;
+            }
+
+            shoot(projectiles) {
+                if (this.dead || this.cooldown > 0) return;
+                
+                Audio.playShoot();
+                this.cooldown = 2.0; // Reload time
+
+                // Calculate spawn position (tip of barrel)
+                const barrelTip = new THREE.Vector3(0, 0, 2.5);
+                barrelTip.applyMatrix4(this.barrelMesh.matrixWorld);
+                
+                // Calculate direction
+                const direction = new THREE.Vector3(0, 0, 1);
+                direction.applyQuaternion(this.barrelMesh.getWorldQuaternion(new THREE.Quaternion()));
+                direction.normalize();
+
+                // Create projectile
+                const proj = new Projectile(this.scene, this.world, barrelTip, direction, this);
+                projectiles.push(proj);
+
+                // Recoil
+                const recoilForce = direction.clone().multiplyScalar(-500);
+                this.body.applyImpulse(new CANNON.Vec3(recoilForce.x, recoilForce.y, recoilForce.z), this.body.position);
+            }
+
+            takeDamage(amount) {
+                if (this.dead) return;
+                this.hp -= amount;
+                Events.emit('tankDamaged', { tank: this, amount });
+                
+                if (this.hp <= 0) {
+                    this.hp = 0;
+                    this.dead = true;
+                    this.world.removeBody(this.body);
+                    this.chassisMesh.material.color.setHex(0x333333); // Burnt look
+                    Events.emit('tankDestroyed', this);
+                    Audio.playExplosion();
+                }
+            }
+        }
+
+        // --- src/weapons/Projectile.js ---
+        class Projectile {
+            constructor(scene, physicsWorld, position, direction, owner) {
+                this.scene = scene;
+                this.world = physicsWorld;
+                this.owner = owner;
+                this.speed = 50;
+                this.damage = 35;
+                this.active = true;
+
+                // Visual
+                const geo = new THREE.SphereGeometry(0.3);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                this.mesh = new THREE.Mesh(geo, mat);
+                this.mesh.position.copy(position);
+                this.scene.add(this.mesh);
+
+                // Physics
+                const shape = new CANNON.Sphere(0.3);
+                this.body = new CANNON.Body({ mass: 10 });
+                this.body.addShape(shape);
+                this.body.position.copy(position);
+                this.body.velocity.set(direction.x * this.speed, direction.y * this.speed, direction.z * this.speed);
+                this.body.collisionFilterGroup = 1; // Simple collision group
+                this.body.addEventListener("collide", (e) => this.onCollide(e));
+                
+                this.world.addBody(this.body);
+
+                // Trail (Simple)
+                this.trail = [];
+            }
+
+            onCollide(e) {
+                if (!this.active) return;
+                this.active = false;
+                
+                // Check what we hit
+                // In a real engine, we'd check user data. Here we check velocity change or simple distance
+                // For simplicity, we just explode on contact.
+                
+                Audio.playExplosion();
+                Events.emit('projectileHit', { position: this.mesh.position });
+                
+                this.dispose();
+            }
+
+            update(dt) {
+                if (!this.active) return;
+                this.mesh.position.copy(this.body.position);
+                
+                // Auto-remove after 5 seconds
+                if (this.mesh.position.y < -10) this.dispose();
+            }
+
+            dispose() {
+                this.active = false;
+                this.world.removeBody(this.body);
+                this.scene.remove(this.mesh);
+            }
+        }
+
+        // --- src/ai/AISystem.js ---
+        class AISystem {
+            constructor(player) {
+                this.player = player;
+                this.state = 'PATROL'; // PATROL, CHASE, ATTACK
+                this.target = null;
+                this.timer = 0;
+            }
+
+            update(dt, tank) {
+                if (tank.dead) return;
+
+                const dist = tank.mesh.position.distanceTo(this.player.mesh.position);
+                const dirToPlayer = new THREE.Vector3().subVectors(this.player.mesh.position, tank.mesh.position).normalize();
+                
+                // Calculate angle to player for turret
+                const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
+                const tankRotation = tank.mesh.rotation.y;
+                
+                // Simple State Machine
+                if (dist < 80) {
+                    this.state = 'ATTACK';
+                } else if (dist < 150) {
+                    this.state = 'CHASE';
+                } else {
+                    this.state = 'PATROL';
+                }
+
+                switch (this.state) {
+                    case 'CHASE':
+                        // Move towards player
+                        const forward = 1;
+                        const turn = Math.sin(angleToPlayer - tankRotation);
+                        tank.move(forward, turn);
+                        // Rotate turret towards player
+                        tank.rotateTurret(angleToPlayer - tankRotation, 0);
+                        break;
+                    
+                    case 'ATTACK':
+                        // Stop and shoot
+                        tank.move(0, Math.sin(angleToPlayer - tankRotation) * 0.5);
+                        tank.rotateTurret(angleToPlayer - tankRotation, 0);
+                        this.timer += dt;
+                        if (this.timer > 2.0) {
+                            tank.shoot(window.gameProjectiles);
+                            this.timer = 0;
+                        }
+                        break;
+
+                    case 'PATROL':
+                        tank.move(0.5, 0.2);
+                        tank.rotateTurret(tank.mesh.rotation.y + Math.sin(Date.now()*0.001), 0);
+                        break;
+                }
+            }
+        }
+
+        // --- src/ui/HUD.js ---
+        class HUD {
+            constructor() {
+                this.hpBar = document.getElementById('hp-bar');
+                this.hpVal = document.getElementById('hp-val');
+                this.armorBar = document.getElementById('armor-bar');
+                this.armorVal = document.getElementById('armor-val');
+                this.ammoMain = document.getElementById('ammo-main');
+                this.speedInd = document.getElementById('speed-indicator');
+                this.minimapCanvas = document.getElementById('minimap-canvas');
+                this.ctx = this.minimapCanvas.getContext('2d');
+                this.damageOverlay = document.getElementById('damage-overlay');
+                this.score = 0;
+                this.scoreEl = document.getElementById('score-text');
+            }
+
+            update(player) {
+                if (player.dead) return;
+
+                // HP
+                const hpPct = (player.hp / player.maxHp) * 100;
+                this.hpBar.style.width = `${hpPct}%`;
+                this.hpVal.innerText = `${Math.ceil(hpPct)}%`;
+
+                // Speed
+                const vel = player.body.velocity.length();
+                this.speedInd.innerText = `${Math.round(vel * 3.6)} km/h`; // m/s to km/h
+
+                // Minimap
+                this.drawMinimap(player);
+            }
+
+            drawMinimap(player) {
+                const w = this.minimapCanvas.width;
+                const h = this.minimapCanvas.height;
+                const ctx = this.ctx;
+                
+                ctx.clearRect(0, 0, w, h);
+                
+                // Draw Enemies
+                ctx.fillStyle = 'red';
+                window.gameEnemies.forEach(enemy => {
+                    if (enemy.dead) return;
+                    const dx = (enemy.mesh.position.x - player.mesh.position.x) * 0.5 + w/2;
+                    const dz = (enemy.mesh.position.z - player.mesh.position.z) * 0.5 + h/2;
+                    if (dx > 0 && dx < w && dz > 0 && dz < h) {
+                        ctx.beginPath();
+                        ctx.arc(dx, dz, 3, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                });
+
+                // Draw Player (Center)
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.arc(w/2, h/2, 4, 0, Math.PI*2);
+                ctx.fill();
+                
+                // Player Direction
+                ctx.strokeStyle = 'blue';
+                ctx.beginPath();
+                ctx.moveTo(w/2, h/2);
+                const dir = new THREE.Vector3(0,0,1).applyQuaternion(player.mesh.quaternion);
+                ctx.lineTo(w/2 + dir.x * 10, h/2 + dir.z * 10);
+                ctx.stroke();
+            }
+
+            showDamage() {
+                this.damageOverlay.style.boxShadow = "inset 0 0 50px 20px rgba(255, 0, 0, 0.5)";
+                setTimeout(() => {
+                    this.damageOverlay.style.boxShadow = "inset 0 0 0 0 rgba(255, 0, 0, 0)";
+                }, 200);
+            }
+
+            addScore() {
+                this.score++;
+                this.scoreEl.innerText = `击杀: ${this.score}`;
+                this.showToast("击毁敌军坦克 +100");
+            }
+
+            showToast(msg) {
+                const area = document.getElementById('notification-area');
+                const el = document.createElement('div');
+                el.className = 'toast';
+                el.innerText = msg;
+                area.appendChild(el);
+                setTimeout(() => el.remove(), 3000);
+            }
+        }
+
+        // --- src/main.js (Game Logic) ---
+        
+        // Globals
+        let camera, scene, renderer, controls;
+        let physicsWorld;
+        let playerTank;
+        let particles;
+        let hud;
+        let lastTime;
+        let gameRunning = false;
+        
+        // Game Objects Lists
+        window.gameEnemies = [];
+        window.gameProjectiles = [];
+        const aiControllers = [];
+
+        // Input State
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = { x: 0, y: 0 };
+
+        function init() {
+            // Setup Three.js
+            const container = document.getElementById('game-container');
+            scene = createScene();
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Setup Physics
+            physicsWorld = new PhysicsWorld();
+
+            // Setup Terrain
+            const terrainMesh = createTerrainMesh(CONFIG.terrainSize, 100);
+            scene.add(terrainMesh);
+            const terrainBody = createTerrainBody(null, CONFIG.terrainSize, 100);
+            physicsWorld.world.addBody(terrainBody);
+
+            // Setup Player
+            playerTank = new Tank(scene, physicsWorld, 0, 0, CONFIG.colors.player, true);
+            
+            // Setup Enemies
+            for (let i = 0; i < 5; i++) {
+                const ex = (Math.random() - 0.5) * 200;
+                const ez = (Math.random() - 0.5) * 200;
+                const enemy = new Tank(scene, physicsWorld, ex, ez, CONFIG.colors.enemy);
+                window.gameEnemies.push(enemy);
+                aiControllers.push(new AISystem(playerTank));
+            }
+
+            // Systems
+            particles = new ParticleSystem(scene);
+            hud = new HUD();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousedown', onMouseDown);
+
+            // Game Events
+            Events.on('projectileHit', (data) => {
+                particles.createExplosion(data.position);
+                
+                // Check damage to tanks
+                const hitPos = data.position;
+                [playerTank, ...window.gameEnemies].forEach(tank => {
+                    if (!tank.dead && tank.mesh.position.distanceTo(hitPos) < 3) {
+                        tank.takeDamage(35);
+                        if (tank === playerTank) hud.showDamage();
+                    }
+                });
+            });
+
+            Events.on('tankDestroyed', (tank) => {
+                if (tank !== playerTank) {
+                    hud.addScore();
+                    // Respawn logic for endless mode could go here
+                    setTimeout(() => {
+                        const ex = (Math.random() - 0.5) * 200;
+                        const ez = (Math.random() - 0.5) * 200;
+                        const newEnemy = new Tank(scene, physicsWorld, ex, ez, CONFIG.colors.enemy);
+                        window.gameEnemies.push(newEnemy);
+                        aiControllers.push(new AISystem(playerTank));
+                    }, 5000);
+                } else {
+                    gameOver();
+                }
+            });
+
+            lastTime = performance.now();
+            animate();
+        }
+
+        function animate() {
+            if (!gameRunning) return;
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const dt = (time - lastTime) / 1000;
+            lastTime = time;
+
+            // Physics
+            physicsWorld.update(dt);
+
+            // Player Input
+            let forward = 0;
+            if (keys.w) forward = 1;
+            if (keys.s) forward = -1;
+            
+            let turn = 0;
+            if (keys.a) turn = 1;
+            if (keys.d) turn = -1;
+
+            playerTank.move(forward, turn);
+
+            // Turret Control (Mouse relative to center)
+            // Simple logic: Map mouse X to turret rotation
+            const turretY = (mouse.x / window.innerWidth) * 2 - 1; // -1 to 1
+            const turretX = -(mouse.y / window.innerHeight) * 2 + 1; // -1 to 1
+            playerTank.rotateTurret(turretY * Math.PI, turretX * 0.5);
+
+            // Camera Follow (Over Shoulder)
+            // Calculate ideal camera position: behind and above tank
+            const offset = new THREE.Vector3(0, 5, -10);
+            offset.applyQuaternion(playerTank.mesh.quaternion);
+            const targetPos = playerTank.mesh.position.clone().add(offset);
+            
+            // Smooth camera
+            camera.position.lerp(targetPos, 0.1);
+            camera.lookAt(playerTank.mesh.position.clone().add(new THREE.Vector3(0, 2, 0)));
+
+            // Update Entities
+            playerTank.update(dt);
+            
+            window.gameEnemies.forEach((enemy, idx) => {
+                enemy.update(dt);
+                aiControllers[idx].update(dt, enemy);
+            });
+
+            // Update Projectiles
+            for (let i = window.gameProjectiles.length - 1; i >= 0; i--) {
+                const p = window.gameProjectiles[i];
+                p.update(dt);
+                if (!p.active) {
+                    window.gameProjectiles.splice(i, 1);
+                }
+            }
+
+            // Update Particles
+            particles.update(dt);
+
+            // Update UI
+            hud.update(playerTank);
+
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        // --- Input Handlers ---
+        function onKeyDown(e) {
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = true; break;
+                case 'a': keys.a = true; break;
+                case 's': keys.s = true; break;
+                case 'd': keys.d = true; break;
+                case 'r': hud.showToast("正在装填..."); break; // Visual only for now
+                case 'n': toggleNightVision(); break;
+            }
+        }
+
+        function onKeyUp(e) {
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = false; break;
+                case 'a': keys.a = false; break;
+                case 's': keys.s = false; break;
+                case 'd': keys.d = false; break;
+            }
+        }
+
+        function onMouseMove(e) {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        }
+
+        function onMouseDown(e) {
+            if (!gameRunning) return;
+            if (e.button === 0) { // Left Click
+                playerTank.shoot(window.gameProjectiles);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleNightVision() {
+            const isNight = scene.background.getHex() === 0x001100;
+            if (isNight) {
+                scene.background.setHex(CONFIG.colors.sky);
+                scene.fog.color.setHex(CONFIG.colors.sky);
+                scene.fog.density = 0.002;
+                hud.showToast("夜视仪: 关闭");
+            } else {
+                scene.background.setHex(0x001100);
+                scene.fog.color.setHex(0x002200);
+                scene.fog.density = 0.01;
+                hud.showToast("夜视仪: 开启");
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('ui-layer').classList.remove('hidden');
+            gameRunning = true;
+            init();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        // Bind UI Buttons
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+    </script>
+</body>
+</html>
